@@ -1,0 +1,6249 @@
+<!DOCTYPE html>
+
+<html lang="es">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+
+  <title>Birthday Fun Center</title>
+
+
+
+  <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
+
+
+
+  <script>
+
+
+
+    /* =========================================================
+
+       COLISIONES DEL JUGADOR
+
+
+
+       Todo lo que tenga class="solid" bloqueará al jugador.
+
+       También permite deslizarse por las paredes.
+
+    ========================================================= */
+
+
+
+    AFRAME.registerComponent("player-collision", {
+
+
+
+      schema: {
+
+        radius: { default: 0.42 }
+
+      },
+
+
+
+      init: function () {
+
+        this.lastPosition = this.el.object3D.position.clone();
+
+      },
+
+
+
+      collides: function (x, z) {
+
+
+
+        const radius = this.data.radius;
+
+
+
+        const feetY = this.el.object3D.position.y - 1.65;
+        const playerBox = new THREE.Box3(
+          new THREE.Vector3(
+            x - radius,
+            feetY + 0.08,
+            z - radius
+          ),
+          new THREE.Vector3(
+            x + radius,
+            feetY + 1.72,
+            z + radius
+          )
+        );
+
+
+
+
+
+        const solids = document.querySelectorAll(".solid");
+
+
+
+
+
+        for (const element of solids) {
+
+
+
+          if (!element.object3D.visible) continue;
+
+
+
+          const box = new THREE.Box3().setFromObject(
+
+            element.object3D
+
+          );
+
+
+
+
+
+          if (box.intersectsBox(playerBox)) {
+
+            return true;
+
+          }
+
+
+
+        }
+
+
+
+
+
+        return false;
+
+      },
+
+
+
+
+
+      tick: function () {
+
+
+
+        const position = this.el.object3D.position;
+
+
+
+        const currentX = position.x;
+
+        const currentZ = position.z;
+
+
+
+        const oldX = this.lastPosition.x;
+
+        const oldZ = this.lastPosition.z;
+
+
+
+
+
+        /* No hay colisión */
+
+
+
+        if (!this.collides(currentX, currentZ)) {
+
+
+
+          this.lastPosition.copy(position);
+
+          return;
+
+
+
+        }
+
+
+
+
+
+        /* intenta moverse solamente en X */
+
+
+
+        if (!this.collides(currentX, oldZ)) {
+
+
+
+          position.z = oldZ;
+
+
+
+          this.lastPosition.x = currentX;
+
+          this.lastPosition.z = oldZ;
+
+
+
+          return;
+
+        }
+
+
+
+
+
+        /* intenta moverse solamente en Z */
+
+
+
+        if (!this.collides(oldX, currentZ)) {
+
+
+
+          position.x = oldX;
+
+
+
+          this.lastPosition.x = oldX;
+
+          this.lastPosition.z = currentZ;
+
+
+
+          return;
+
+        }
+
+
+
+
+
+        /* bloqueado completamente */
+
+
+
+        position.x = oldX;
+
+        position.z = oldZ;
+
+
+
+      }
+
+
+
+    });
+
+
+
+
+
+
+
+    /* =========================================================
+
+       MOVIMIENTO SUAVE DE GLOBOS
+
+    ========================================================= */
+
+
+
+    AFRAME.registerComponent("balloon-float", {
+
+
+
+      schema: {
+
+
+
+        amount: {
+
+          default: 0.06
+
+        },
+
+
+
+        speed: {
+
+          default: 0.001
+
+        }
+
+
+
+      },
+
+
+
+
+
+      init: function () {
+
+
+
+        this.originalY =
+
+          this.el.object3D.position.y;
+
+
+
+        this.offset =
+
+          Math.random() * Math.PI * 2;
+
+
+
+      },
+
+
+
+
+
+      tick: function (time) {
+
+
+
+        this.el.object3D.position.y =
+
+
+
+          this.originalY +
+
+
+
+          Math.sin(
+
+            time * this.data.speed +
+
+            this.offset
+
+          )
+
+
+
+          * this.data.amount;
+
+
+
+      }
+
+
+
+    });
+
+
+
+
+
+
+
+    /* =========================================================
+
+       GENERADOR DEL PISO DE MOSAICOS
+
+    ========================================================= */
+
+
+
+    AFRAME.registerComponent("party-floor", {
+
+
+
+      init: function () {
+
+
+
+        const colors = [
+
+
+
+          "#E8E4DA",
+
+          "#E8E4DA",
+
+          "#E8E4DA",
+
+          "#E8E4DA",
+
+          "#E8E4DA",
+
+
+
+          "#A43A34",
+
+          "#257A9C",
+
+          "#C5A728",
+
+          "#303335"
+
+
+
+        ];
+
+
+
+
+
+        const size = 2;
+
+
+
+
+
+        /*
+
+          Edificio completo:
+
+
+
+          X: -40 hasta 40
+
+          Z:  5 hasta -115
+
+        */
+
+
+
+
+
+        for (
+
+          let x = -40;
+
+          x < 40;
+
+          x += size
+
+        ) {
+
+
+
+
+
+          for (
+
+            let z = -300;
+
+            z < 5;
+
+            z += size
+
+          ) {
+
+
+
+
+
+            // El parkour sigue siendo un vacío real.
+            if (x >= 8 && x < 40 && z >= -166 && z < -116) continue;
+
+            const tile =
+
+              document.createElement("a-box");
+
+
+
+
+
+            const color = colors[
+
+              Math.floor(
+
+                Math.random() *
+
+                colors.length
+
+              )
+
+            ];
+
+
+
+
+
+            tile.setAttribute(
+
+              "position",
+
+              `${x + 1} 0 ${z + 1}`
+
+            );
+
+
+
+
+
+            tile.setAttribute(
+
+              "width",
+
+              "1.96"
+
+            );
+
+
+
+
+
+            tile.setAttribute(
+
+              "height",
+
+              "0.04"
+
+            );
+
+
+
+
+
+            tile.setAttribute(
+
+              "depth",
+
+              "1.96"
+
+            );
+
+
+
+
+
+            tile.setAttribute(
+
+              "material",
+
+
+
+              `
+
+                color:${color};
+
+                roughness:0.88;
+
+                metalness:0.01
+
+              `
+
+            );
+
+
+
+
+
+            tile.setAttribute(
+
+              "shadow",
+
+              "receive:true"
+
+            );
+
+
+
+
+
+            this.el.appendChild(tile);
+
+
+
+          }
+
+
+
+        }
+
+
+
+      }
+
+
+
+    });
+
+
+
+  
+/* =========================================================
+   INTERACCIONES: SALTO, PELOTAS Y MONSTRUOS
+========================================================= */
+
+AFRAME.registerComponent('game-controls', {
+  schema: {
+    jumpSpeed: {default: 5.8},
+    gravity: {default: 15.5},
+    floorY: {default: 1.65}
+  },
+
+  init: function () {
+    this.velocityY = 0;
+    this.onGround = true;
+    this.keys = {};
+    this.onKeyDown = (e) => {
+      this.keys[e.code] = true;
+      if (e.code === 'Space' && this.onGround) {
+        e.preventDefault();
+        this.velocityY = this.data.jumpSpeed;
+        this.onGround = false;
+      }
+      if (e.code === 'KeyE') this.tryGrabOrThrow();
+    };
+    this.onKeyUp = (e) => { this.keys[e.code] = false; };
+    window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
+    this.heldBall = null;
+  },
+
+  tryGrabOrThrow: function () {
+    if (this.heldBall) {
+      const ball = this.heldBall;
+      const cam = this.el.object3D;
+      const dir = new THREE.Vector3(0, 0, -1);
+      dir.applyQuaternion(cam.quaternion).normalize();
+
+      const worldPos = new THREE.Vector3();
+      ball.object3D.getWorldPosition(worldPos);
+      const sceneObj = this.el.sceneEl.object3D;
+      sceneObj.attach(ball.object3D);
+      ball.object3D.position.copy(worldPos);
+
+      ball.removeAttribute('animation');
+      ball.setAttribute('dynamic-ball', `vx:${dir.x * 10}; vy:${dir.y * 10 + 2.2}; vz:${dir.z * 10}`);
+      ball.classList.remove('held');
+      this.heldBall = null;
+      return;
+    }
+
+    const playerPos = new THREE.Vector3();
+    this.el.object3D.getWorldPosition(playerPos);
+    let nearest = null;
+    let best = 2.3;
+
+    document.querySelectorAll('.pickup-ball').forEach(ball => {
+      if (ball.classList.contains('held')) return;
+      const p = new THREE.Vector3();
+      ball.object3D.getWorldPosition(p);
+      const d = p.distanceTo(playerPos);
+      if (d < best) { best = d; nearest = ball; }
+    });
+
+    if (nearest) {
+      nearest.removeAttribute('dynamic-ball');
+      nearest.classList.add('held');
+      this.el.object3D.attach(nearest.object3D);
+      nearest.object3D.position.set(0.55, -0.35, -1.15);
+      nearest.object3D.rotation.set(0, 0, 0);
+      this.heldBall = nearest;
+    }
+  },
+
+  tick: function (time, dt) {
+    const seconds = Math.min(dt / 1000, 0.05);
+    const p = this.el.object3D.position;
+    const previousY = p.y;
+
+    if (!this.onGround || this.velocityY > 0) {
+      this.velocityY -= this.data.gravity * seconds;
+      p.y += this.velocityY * seconds;
+    }
+
+    const playerX = p.x;
+    const playerZ = p.z;
+    const inParkourVoid =
+      playerX > 9 && playerX < 39 &&
+      playerZ < -117 && playerZ > -165;
+
+    // Fuera del parkour existe suelo normal. Dentro del parkour, NO.
+    let landingY = inParkourVoid ? -50 : this.data.floorY;
+    let foundPlatform = false;
+
+    if (this.velocityY <= 0) {
+      document.querySelectorAll('.parkour-platform').forEach(platform => {
+        const box = new THREE.Box3().setFromObject(platform.object3D);
+        const feetPrevious = previousY - this.data.floorY;
+        const feetNow = p.y - this.data.floorY;
+        const insideXZ =
+          playerX > box.min.x - .28 && playerX < box.max.x + .28 &&
+          playerZ > box.min.z - .28 && playerZ < box.max.z + .28;
+
+        if (insideXZ &&
+            feetPrevious >= box.max.y - .30 &&
+            feetNow <= box.max.y + .25) {
+          landingY = box.max.y + this.data.floorY;
+          foundPlatform = true;
+        }
+      });
+    }
+
+    if (p.y <= landingY && this.velocityY <= 0) {
+      p.y = landingY;
+      this.velocityY = 0;
+      this.onGround = true;
+    } else if (inParkourVoid && !foundPlatform) {
+      this.onGround = false;
+    } else if (p.y > landingY + .03) {
+      this.onGround = false;
+    }
+  },
+
+  remove: function () {
+    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
+  }
+});
+
+AFRAME.registerComponent('dynamic-ball', {
+  schema: {
+    vx: {default: 0},
+    vy: {default: 0},
+    vz: {default: 0}
+  },
+
+  init: function () {
+    this.v = new THREE.Vector3(this.data.vx, this.data.vy, this.data.vz);
+    this.gravity = 10.5;
+    this.floor = 0.34;
+    this.bounces = 0;
+  },
+
+  tick: function (time, dt) {
+    const s = Math.min(dt / 1000, 0.05);
+    this.v.y -= this.gravity * s;
+    this.el.object3D.position.addScaledVector(this.v, s);
+
+    if (this.el.object3D.position.y < this.floor) {
+      this.el.object3D.position.y = this.floor;
+      if (Math.abs(this.v.y) > 1.0 && this.bounces < 5) {
+        this.v.y = Math.abs(this.v.y) * 0.48;
+        this.v.x *= 0.82;
+        this.v.z *= 0.82;
+        this.bounces++;
+      } else {
+        this.v.y = 0;
+        this.v.x *= 0.90;
+        this.v.z *= 0.90;
+      }
+    }
+  }
+});
+
+AFRAME.registerComponent('monster-react', {
+  schema:{distance:{default:14},speed:{default:.7},mode:{default:'follow'},faceBack:{default:false},exitX:{default:9999},exitZ:{default:9999},exitDoneZ:{default:9999}},
+  init:function(){
+    this.player=document.querySelector('#player');
+    this.radius=.52;
+    // Collider de navegación más bajo que el modelo visual:
+    // evita que la cabeza choque con dinteles y le impida salir por puertas.
+    this.height=2.15;
+  },
+  isWatched:function(playerPos, monsterPos){
+    const player=document.querySelector('#player');
+    const camComp=player && player.components && player.components.camera;
+    if(!camComp || !camComp.camera) return false;
+
+    const forward=new THREE.Vector3();
+    camComp.camera.getWorldDirection(forward);
+    forward.y=0;
+    if(forward.lengthSq()<.001) return false;
+    forward.normalize();
+
+    const toward=monsterPos.clone().sub(playerPos);
+    toward.y=0;
+    const dist=toward.length();
+    if(dist<.001) return true;
+    toward.normalize();
+
+    // cono bastante amplio: si está claramente dentro de tu vista, NO se mueve.
+    return dist < 32 && forward.dot(toward) > .50;
+  },
+  blocked:function(wx,wz){
+    const pos=new THREE.Vector3();
+    this.el.object3D.getWorldPosition(pos);
+
+    const body=new THREE.Box3(
+      new THREE.Vector3(wx-this.radius,pos.y+.08,wz-this.radius),
+      new THREE.Vector3(wx+this.radius,pos.y+this.height,wz+this.radius)
+    );
+
+    for(const solid of document.querySelectorAll('.solid')){
+      if(solid===this.el || this.el.contains(solid) || !solid.object3D.visible) continue;
+      const box=new THREE.Box3().setFromObject(solid.object3D);
+      if(!box.isEmpty() && body.intersectsBox(box)) return true;
+    }
+    return false;
+  },
+  moveWorld:function(dx,dz){
+    const obj=this.el.object3D;
+    const wp=new THREE.Vector3();
+    obj.getWorldPosition(wp);
+    wp.x+=dx; wp.z+=dz;
+    if(obj.parent){
+      const lp=obj.parent.worldToLocal(wp.clone());
+      obj.position.x=lp.x;
+      obj.position.z=lp.z;
+    }else{
+      obj.position.x=wp.x; obj.position.z=wp.z;
+    }
+  },
+  tick:function(time,dt){
+    if(!this.player || window.FUN_PLAYER_HIDDEN) return;
+
+    const pp=new THREE.Vector3(), mp=new THREE.Vector3();
+    this.player.object3D.getWorldPosition(pp);
+    this.el.object3D.getWorldPosition(mp);
+
+    if(this.data.mode==='blackoutwatch' && !window.FUN_CENTER_BLACKOUT) return;
+
+    // Los monstruos "watch" se congelan ANTES de calcular cualquier movimiento.
+    if((this.data.mode==='watch' || this.data.mode==='blackoutwatch') &&
+       this.isWatched(pp,mp)){
+      return;
+    }
+
+    const dist=pp.distanceTo(mp);
+    const detection=window.FUN_CENTER_BLACKOUT ? this.data.distance*1.8 : this.data.distance;
+    if(dist>detection) return;
+
+    let targetX=pp.x, targetZ=pp.z;
+
+    // Algunos monstruos nacen dentro de cuartos con una única salida.
+    // En vez de empujar contra la pared, primero buscan la puerta.
+    if(this.data.exitX < 9000 && this.data.exitZ < 9000){
+      if(!this.exitCleared){
+        targetX=this.data.exitX;
+        targetZ=this.data.exitZ;
+
+        const ex=targetX-mp.x, ez=targetZ-mp.z;
+        if(Math.sqrt(ex*ex+ez*ez) < 1.15){
+          this.exitCleared=true;
+          targetX=pp.x;
+          targetZ=pp.z;
+        }
+      }
+    }
+
+    const dx=targetX-mp.x, dz=targetZ-mp.z;
+
+    // Las caras de estos monstruos están construidas sobre su lado +Z.
+    // Por eso este ángulo hace que la CARA, no la espalda, apunte al jugador.
+    const targetYaw=this.data.faceBack ? Math.atan2(-dx,-dz) : Math.atan2(dx,dz);
+    const obj=this.el.object3D;
+    const diff=Math.atan2(Math.sin(targetYaw-obj.rotation.y),Math.cos(targetYaw-obj.rotation.y));
+    obj.rotation.y += diff*Math.min((dt/1000)*3.2,.22);
+
+    if(dist>1.75){
+      const dir=new THREE.Vector3(dx,0,dz).normalize();
+      const boost=window.FUN_CENTER_BLACKOUT ? 2.8 : 1;
+      const step=this.data.speed*boost*Math.min(dt/1000,.045);
+
+      const nx=mp.x+dir.x*step;
+      const nz=mp.z+dir.z*step;
+
+      // movimiento completo; si no cabe, desliza por X o Z.
+      if(!this.blocked(nx,nz)) this.moveWorld(dir.x*step,dir.z*step);
+      else if(!this.blocked(nx,mp.z)) this.moveWorld(dir.x*step,0);
+      else if(!this.blocked(mp.x,nz)) this.moveWorld(0,dir.z*step);
+      else {
+        // Si llega justo a una esquina/marco, prueba pequeños pasos laterales.
+        const sideX=-dir.z, sideZ=dir.x;
+        const sideStep=step*.85;
+        if(!this.blocked(mp.x+sideX*sideStep,mp.z+sideZ*sideStep))
+          this.moveWorld(sideX*sideStep,sideZ*sideStep);
+        else if(!this.blocked(mp.x-sideX*sideStep,mp.z-sideZ*sideStep))
+          this.moveWorld(-sideX*sideStep,-sideZ*sideStep);
+      }
+    }
+  }
+});
+
+
+/* =========================================================
+   MINIJUEGO, APAGÓN, LINTERNA Y PARKOUR
+========================================================= */
+
+AFRAME.registerComponent('letter-hunt', {
+  init: function () {
+    this.player = document.querySelector('#player');
+    this.cubes = Array.from(document.querySelectorAll('.letter-cube'));
+    this.found = new Set();
+    this.status = document.querySelector('#letter-status');
+  },
+  tick: function () {
+    if (!this.player) return;
+    const pp = new THREE.Vector3();
+    this.player.object3D.getWorldPosition(pp);
+    this.cubes = Array.from(document.querySelectorAll('.letter-cube'));
+    this.cubes.forEach(cube => {
+      if (this.found.has(cube)) return;
+      const cp = new THREE.Vector3();
+      cube.object3D.getWorldPosition(cp);
+      if (pp.distanceTo(cp) < 1.35) {
+        this.found.add(cube);
+        cube.setAttribute('animation', 'property:scale; to:0 0 0; dur:350; easing:easeInBack');
+        setTimeout(() => cube.setAttribute('visible', 'false'), 360);
+        if (this.status) {
+          this.status.textContent = `Cubitos: ${this.found.size}/${this.cubes.length}`;
+          if (this.found.size === this.cubes.length) {
+            this.status.textContent = '¡Ganaste el laberinto! Encontraste todos los cubitos.';
+          }
+        }
+      }
+    });
+  }
+});
+
+AFRAME.registerComponent('blackout-event', {
+  schema: {triggerZ: {default:-120}},
+  init: function () {
+    this.player = document.querySelector('#player');
+    this.done = false;
+  },
+  tick: function () {
+    if (this.done || !this.player) return;
+    if (this.player.object3D.position.z < this.data.triggerZ) {
+      this.done = true;
+      window.FUN_CENTER_BLACKOUT = true;
+      document.body.classList.add('blackout');
+      const ambient = document.querySelectorAll('[light]');
+      ambient.forEach(el => {
+        if (!el.hasAttribute('flashlight')) {
+          const light = el.getAttribute('light');
+          if (light) {
+            el.dataset.oldIntensity = light.intensity ?? 1;
+            el.setAttribute('light', 'intensity', 0.015);
+          }
+        }
+      });
+      document.querySelectorAll('[monster-react]').forEach(el => {
+        const d = el.getAttribute('monster-react');
+        el.setAttribute('monster-react', 'speed', Math.max((d.speed || .3) * 2.4, .85));
+      });
+      const notice = document.querySelector('#blackout-notice');
+      if (notice) {
+        notice.style.display = 'block';
+        setTimeout(() => notice.style.display = 'none', 4200);
+      }
+      const flash = document.querySelector('#flashlight');
+      if (flash) flash.setAttribute('light', 'intensity', 7.5);
+    }
+  }
+});
+
+AFRAME.registerComponent('flashlight-toggle', {
+  init: function () {
+    this.on = true;
+    this.handler = e => {
+      if (e.code !== 'KeyL') return;
+      if(!this.on && (window.FUN_FLASH_BATTERY||0)<=0){ if(window.funHud) funHud('SIN BATERÍA'); return; }
+      this.on = !this.on;
+      this.el.setAttribute('light', 'intensity', this.on ? 7.5 : 0);
+    };
+    window.addEventListener('keydown', this.handler);
+  },
+  remove: function () { window.removeEventListener('keydown', this.handler); }
+});
+
+
+AFRAME.registerComponent('edible-food', {
+  schema: {kind:{default:'comida'}},
+  init: function () {
+    this.player = document.querySelector('#player');
+    this.near = false;
+    this.eaten = false;
+    this.handler = (e) => {
+      if (e.code === 'KeyQ' && this.near && !this.eaten) this.eat();
+    };
+    window.addEventListener('keydown', this.handler);
+  },
+  tick: function () {
+    if (!this.player || this.eaten) return;
+    const p = new THREE.Vector3();
+    const f = new THREE.Vector3();
+    this.player.object3D.getWorldPosition(p);
+    this.el.object3D.getWorldPosition(f);
+    this.near = p.distanceTo(f) < 1.7;
+  },
+  eat: function () {
+    this.eaten = true;
+    const kind = this.data.kind;
+    this.el.setAttribute('animation',
+      'property:scale; to:0 0 0; dur:260; easing:easeInBack');
+    const msg = document.querySelector('#food-status');
+    if (msg) {
+      msg.textContent = kind === 'pizza' ? 'Te comiste un pedazo de pizza 🍕' : 'Te comiste un pedazo de pastel 🍰';
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 1800);
+    }
+    setTimeout(() => this.el.setAttribute('visible','false'), 280);
+  },
+  remove: function () { window.removeEventListener('keydown', this.handler); }
+});
+
+
+AFRAME.registerComponent('enemy-danger', {
+  schema: {
+    killDistance: {default: 1.25}
+  },
+
+  init: function () {
+    this.player = document.querySelector('#player');
+    this.dead = false;
+    this.spawn = new THREE.Vector3(0, 1.65, 1);
+  },
+
+  tick: function () {
+    if (!window.FUN_CENTER_BLACKOUT || this.dead || !this.player) return;
+
+    const playerPos = new THREE.Vector3();
+    const enemyPos = new THREE.Vector3();
+    this.player.object3D.getWorldPosition(playerPos);
+    this.el.object3D.getWorldPosition(enemyPos);
+
+    if (playerPos.distanceTo(enemyPos) <= this.data.killDistance) {
+      this.dead = true;
+
+      const screen = document.querySelector('#game-over-screen');
+      if (screen) screen.style.display = 'flex';
+
+      // Soltar pelota si el jugador llevaba una.
+      const controls = this.player.components['game-controls'];
+      if (controls && controls.heldBall) controls.heldBall = null;
+
+      setTimeout(() => {
+        this.player.object3D.position.copy(this.spawn);
+        this.player.object3D.rotation.set(0, 0, 0);
+
+        // Regresar enemigos a sus posiciones iniciales.
+        document.querySelectorAll('[enemy-danger]').forEach(enemy => {
+          const original = enemy.dataset.enemySpawn;
+          if (original) {
+            const [x,y,z] = original.split(',').map(Number);
+            enemy.object3D.position.set(x,y,z);
+          }
+        });
+
+        if (screen) screen.style.display = 'none';
+        this.dead = false;
+      }, 1700);
+    }
+  }
+});
+
+AFRAME.registerComponent('remember-enemy-spawn', {
+  init: function () {
+    const p = this.el.object3D.position;
+    this.el.dataset.enemySpawn = `${p.x},${p.y},${p.z}`;
+  }
+});
+
+
+AFRAME.registerComponent('blackout-killer-system', {
+  init: function () {
+    this.player = document.querySelector('#player');
+    this.locked = false;
+    this.spawn = new THREE.Vector3(0, 1.65, 1);
+  },
+
+  tick: function () {
+    if (!window.FUN_CENTER_BLACKOUT || window.FUN_PLAYER_HIDDEN || this.locked || !this.player) return;
+
+    const pp = new THREE.Vector3();
+    this.player.object3D.getWorldPosition(pp);
+
+    let caught = false;
+    document.querySelectorAll('[monster-react]').forEach(enemy => {
+      if (caught) return;
+      const ep = new THREE.Vector3();
+      enemy.object3D.getWorldPosition(ep);
+
+      // Horizontal distance + reasonable vertical difference.
+      const dx = pp.x - ep.x;
+      const dz = pp.z - ep.z;
+      const horizontal = Math.sqrt(dx * dx + dz * dz);
+
+      if (horizontal < 2.05 && Math.abs(pp.y - ep.y) < 3.2) {
+        if((window.FUN_HEALTH||1)>1){
+          window.FUN_HEALTH--;
+          funHud('PERDISTE ENERGÍA · BUSCA PASTEL',1800);
+          enemy.object3D.position.x -= (pp.x-ep.x)*1.4;
+          enemy.object3D.position.z -= (pp.z-ep.z)*1.4;
+        } else {
+          caught = true;
+        }
+      }
+    });
+
+    if (!caught) return;
+
+    this.locked = true;
+    const screen = document.querySelector('#game-over-screen');
+    if (screen) screen.style.display = 'flex';
+
+    setTimeout(() => {
+      this.player.object3D.position.copy(this.spawn);
+
+      const controls = this.player.components['game-controls'];
+      if (controls) {
+        controls.velocityY = 0;
+        controls.onGround = true;
+      }
+
+      // Restore monster positions saved by remember-enemy-spawn.
+      document.querySelectorAll('[monster-react]').forEach(enemy => {
+        const original = enemy.dataset.enemySpawn;
+        if (original) {
+          const parts = original.split(',').map(Number);
+          if (parts.length === 3 && parts.every(Number.isFinite)) {
+            enemy.object3D.position.set(parts[0], parts[1], parts[2]);
+          }
+        }
+      });
+
+      if (screen) screen.style.display = 'none';
+      this.locked = false;
+    }, 1400);
+  }
+});
+
+
+AFRAME.registerComponent('sprint-control', {
+  schema:{walk:{default:24}, run:{default:68}},
+  init:function(){
+    this.running=false;
+    this.keyDown=(e)=>{
+      if(e.code==='ShiftLeft' || e.code==='ShiftRight'){
+        this.running=true;
+        this.el.setAttribute('wasd-controls','acceleration',68);
+      }
+    };
+    this.keyUp=(e)=>{
+      if(e.code==='ShiftLeft' || e.code==='ShiftRight'){
+        this.running=false;
+        this.el.setAttribute('wasd-controls','acceleration',24);
+      }
+    };
+    window.addEventListener('keydown',this.keyDown);
+    window.addEventListener('keyup',this.keyUp);
+  },
+  tick:function(){
+    const w=this.el.components['wasd-controls'];
+    if(!w) return;
+    const wanted=this.running ? this.data.run : this.data.walk;
+    w.data.acceleration=wanted;
+    // Algunas versiones de A-Frame conservan la aceleración en attrValue.
+    if(w.attrValue) w.attrValue.acceleration=wanted;
+  }
+});
+
+
+window.FUN_POWER_RESTORED = false;
+window.FUN_KEYS = new Set();
+window.FUN_SWITCHES = new Set();
+window.FUN_BUTTONS = [];
+
+function funHud(msg, ms=1800){
+  const h=document.querySelector('#objective-status');
+  if(!h) return;
+  h.textContent=msg;
+  h.style.display='block';
+  clearTimeout(window.__funHudTimer);
+  window.__funHudTimer=setTimeout(()=>h.style.display='none',ms);
+}
+
+AFRAME.registerComponent('pickup-item', {
+  schema:{kind:{default:'battery'}, id:{default:''}},
+  init:function(){ this.collected=false; },
+  tick:function(){
+    if(this.collected) return;
+    const p=document.querySelector('#player');
+    if(!p) return;
+    const a=new THREE.Vector3(), b=new THREE.Vector3();
+    p.object3D.getWorldPosition(a); this.el.object3D.getWorldPosition(b);
+    if(a.distanceTo(b)<1.35){
+      this.collected=true;
+      if(this.data.kind==='battery'){
+        window.FUN_FLASH_BATTERY=Math.min(100,(window.FUN_FLASH_BATTERY||100)+40);
+        funHud('BATERÍA +40');
+      } else if(this.data.kind==='key'){
+        window.FUN_KEYS.add(this.data.id);
+        funHud('ENCONTRASTE UNA LLAVE');
+      }
+      this.el.setAttribute('animation','property:scale; to:0 0 0; dur:180');
+      setTimeout(()=>this.el.setAttribute('visible','false'),190);
+    }
+  }
+});
+
+AFRAME.registerComponent('power-switch', {
+  schema:{id:{default:'a'}},
+  init:function(){
+    this.used=false;
+    this.el.addEventListener('click',()=>this.activate());
+    this.key=(e)=>{
+      if(e.code!=='KeyE') return;
+      const p=document.querySelector('#player');
+      if(!p || this.used) return;
+      const a=new THREE.Vector3(),b=new THREE.Vector3();
+      p.object3D.getWorldPosition(a); this.el.object3D.getWorldPosition(b);
+      if(a.distanceTo(b)<2.2) this.activate();
+    };
+    window.addEventListener('keydown',this.key);
+  },
+  activate:function(){
+    if(this.used) return;
+    this.used=true;
+    window.FUN_SWITCHES.add(this.data.id);
+    this.el.setAttribute('rotation','0 0 -35');
+    funHud(`INTERRUPTOR ${window.FUN_SWITCHES.size}/3`);
+    if(window.FUN_SWITCHES.size>=3){
+      window.FUN_POWER_RESTORED=true;
+      window.FUN_CENTER_BLACKOUT=false;
+      document.querySelectorAll('.blackout-light').forEach(l=>l.setAttribute('light','intensity',1.25));
+      funHud('ENERGÍA RESTAURADA',3000);
+    }
+  }
+});
+
+AFRAME.registerComponent('sequence-button', {
+  schema:{n:{default:1}},
+  init:function(){
+    this.key=(e)=>{
+      if(e.code!=='KeyE') return;
+      const p=document.querySelector('#player'); if(!p) return;
+      const a=new THREE.Vector3(),b=new THREE.Vector3();
+      p.object3D.getWorldPosition(a); this.el.object3D.getWorldPosition(b);
+      if(a.distanceTo(b)>2) return;
+      const expected=window.FUN_BUTTONS.length+1;
+      if(this.data.n===expected){
+        window.FUN_BUTTONS.push(this.data.n);
+        this.el.setAttribute('material','color','#68A36B; emissive:#244E2B; emissiveIntensity:.8');
+        funHud(`BOTONES ${window.FUN_BUTTONS.length}/4`);
+        if(window.FUN_BUTTONS.length===4){
+          const gate=document.querySelector('#puzzle-gate');
+          if(gate){
+            gate.classList.remove('solid');
+            const gp=gate.object3D.position;
+            gate.setAttribute('animation',`property:position; to:${gp.x} 7 ${gp.z}; dur:900`);
+          }
+          funHud('PUERTA DESBLOQUEADA',2500);
+        }
+      } else {
+        window.FUN_BUTTONS=[];
+        document.querySelectorAll('[sequence-button]').forEach(x=>x.setAttribute('material','color','#8A3B43; emissive:#3A1519; emissiveIntensity:.35'));
+        funHud('ORDEN INCORRECTO');
+      }
+    };
+    window.addEventListener('keydown',this.key);
+  }
+});
+
+AFRAME.registerComponent('hide-spot', {
+  init:function(){
+    this.inside=false;
+    this.key=(e)=>{
+      if(e.code!=='KeyH') return;
+      const p=document.querySelector('#player'); if(!p) return;
+      const a=new THREE.Vector3(),b=new THREE.Vector3();
+      p.object3D.getWorldPosition(a); this.el.object3D.getWorldPosition(b);
+      if(!this.inside && a.distanceTo(b)<2.1){
+        this.old=p.object3D.position.clone();
+        p.object3D.position.set(b.x,1.65,b.z);
+        window.FUN_PLAYER_HIDDEN=true; this.inside=true; funHud('ESCONDIDA');
+      } else if(this.inside){
+        p.object3D.position.copy(this.old);
+        window.FUN_PLAYER_HIDDEN=false; this.inside=false; funHud('SALISTE');
+      }
+    };
+    window.addEventListener('keydown',this.key);
+  }
+});
+
+
+window.FUN_FLASH_BATTERY = 100;
+AFRAME.registerComponent('flash-battery', {
+  init:function(){
+    this.last=performance.now();
+    setInterval(()=>{
+      const hud=document.querySelector('#battery-status');
+      if(hud) hud.textContent=`Linterna: ${Math.round(window.FUN_FLASH_BATTERY)}%`;
+    },250);
+  },
+  tick:function(){
+    const now=performance.now(), dt=Math.min((now-this.last)/1000,.1); this.last=now;
+    const f=document.querySelector('#flashlight');
+    if(!f) return;
+    const comp=f.components['flashlight-toggle'];
+    if(comp && comp.on){
+      window.FUN_FLASH_BATTERY=Math.max(0,window.FUN_FLASH_BATTERY-dt*0.16);
+      if(window.FUN_FLASH_BATTERY<=0 && comp.on){
+        comp.on=false;
+        f.setAttribute('light','intensity',0);
+        funHud('SIN BATERÍA');
+      }
+    }
+  }
+});
+
+
+AFRAME.registerComponent('parkour-fall-death', {
+  init:function(){
+    this.player=document.querySelector('#player');
+    this.dead=false;
+    this.respawn=new THREE.Vector3(13,1.90,-118);
+  },
+  tick:function(){
+    if(!this.player || this.dead) return;
+
+    const p=this.player.object3D.position;
+
+    // Only applies inside the parkour zone.
+    const inParkour =
+      p.x > 9.5 && p.x < 38.5 &&
+      p.z < -117 && p.z > -165;
+
+    // Falling far enough below the platforms counts as losing.
+    if(inParkour && p.y < -0.85){
+      this.dead=true;
+      const screen=document.querySelector('#game-over-screen');
+      if(screen){
+        const title=screen.querySelector('div');
+        if(title) title.textContent='CAÍSTE';
+        screen.style.display='flex';
+      }
+
+      setTimeout(()=>{
+        this.player.object3D.position.copy(this.respawn);
+        const controls=this.player.components['game-controls'];
+        if(controls){
+          controls.velocityY=0;
+          controls.onGround=true;
+        }
+        if(screen){
+          const title=screen.querySelector('div');
+          if(title) title.textContent='TE ATRAPARON';
+          screen.style.display='none';
+        }
+        this.dead=false;
+      },1100);
+    }
+  }
+});
+
+
+window.FUN_HEALTH = 2;
+window.FUN_PARKOUR_DONE = false;
+window.FUN_ARCADE_DONE = false;
+window.FUN_BASKET_DONE = false;
+window.FUN_GIFTS_DONE = false;
+
+AFRAME.registerComponent('proximity-audio', {
+  init:function(){
+    this.player=document.querySelector('#player');
+    this.ctx=null; this.next=0;
+    window.addEventListener('keydown',()=>{
+      if(!this.ctx) this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+    },{once:true});
+  },
+  tick:function(time){
+    if(!this.player || !this.ctx || time<this.next) return;
+    const pp=new THREE.Vector3(); this.player.object3D.getWorldPosition(pp);
+    let nearest=999;
+    document.querySelectorAll('[monster-react]').forEach(e=>{
+      const ep=new THREE.Vector3(); e.object3D.getWorldPosition(ep);
+      nearest=Math.min(nearest,pp.distanceTo(ep));
+    });
+    if(nearest<9){
+      const o=this.ctx.createOscillator(), g=this.ctx.createGain();
+      o.type='sine'; o.frequency.value=nearest<4?68:52;
+      g.gain.value=nearest<4?.035:.015;
+      o.connect(g); g.connect(this.ctx.destination);
+      o.start(); o.stop(this.ctx.currentTime+.09);
+      this.next=time+(nearest<4?420:850);
+    }
+  }
+});
+
+AFRAME.registerComponent('cake-health', {
+  init:function(){
+    this.used=false;
+    this.key=e=>{
+      if(e.code!=='KeyQ'||this.used) return;
+      const p=document.querySelector('#player'); if(!p) return;
+      const a=new THREE.Vector3(),b=new THREE.Vector3();
+      p.object3D.getWorldPosition(a); this.el.object3D.getWorldPosition(b);
+      if(a.distanceTo(b)<1.7){
+        this.used=true; window.FUN_HEALTH=Math.min(2,(window.FUN_HEALTH||1)+1);
+        this.el.setAttribute('visible','false');
+        funHud('ENERGÍA RECUPERADA');
+      }
+    }; window.addEventListener('keydown',this.key);
+  }
+});
+
+AFRAME.registerComponent('simple-puzzle', {
+  schema:{kind:{default:'arcade'}},
+  init:function(){
+    this.done=false;
+    this.key=e=>{
+      if(e.code!=='KeyE'||this.done) return;
+      const p=document.querySelector('#player'); if(!p)return;
+      const a=new THREE.Vector3(),b=new THREE.Vector3();
+      p.object3D.getWorldPosition(a);this.el.object3D.getWorldPosition(b);
+      if(a.distanceTo(b)>2.2)return;
+      this.done=true;
+      if(this.data.kind==='arcade') window.FUN_ARCADE_DONE=true;
+      if(this.data.kind==='basket') window.FUN_BASKET_DONE=true;
+      if(this.data.kind==='gifts') window.FUN_GIFTS_DONE=true;
+      this.el.setAttribute('material','emissive:#315B3A; emissiveIntensity:.7');
+      funHud('MINIJUEGO COMPLETADO');
+    }; window.addEventListener('keydown',this.key);
+  }
+});
+
+AFRAME.registerComponent('key-door', {
+  init:function(){
+    this.open=false;
+    this.key=e=>{
+      if(e.code!=='KeyE'||this.open)return;
+      const p=document.querySelector('#player'); if(!p)return;
+      const a=new THREE.Vector3(),b=new THREE.Vector3();
+      p.object3D.getWorldPosition(a);this.el.object3D.getWorldPosition(b);
+      if(a.distanceTo(b)>3)return;
+      if(window.FUN_KEYS && window.FUN_KEYS.size>=3){
+        this.open=true;
+        this.el.classList.remove('solid');
+        const dp=this.el.object3D.position;
+        this.el.setAttribute('animation',`property:position; to:${dp.x} 7 ${dp.z}; dur:900`);
+        funHud('HABITACIÓN SECRETA ABIERTA',2500);
+      }else funHud('FALTAN LAS 3 LLAVES');
+    };window.addEventListener('keydown',this.key);
+  }
+});
+
+AFRAME.registerComponent('parkour-finish', {
+  tick:function(){
+    if(window.FUN_PARKOUR_DONE)return;
+    const p=document.querySelector('#player');if(!p)return;
+    const a=new THREE.Vector3(),b=new THREE.Vector3();
+    p.object3D.getWorldPosition(a);this.el.object3D.getWorldPosition(b);
+    if(a.distanceTo(b)<2.5){window.FUN_PARKOUR_DONE=true;funHud('PARKOUR COMPLETADO');}
+  }
+});
+
+AFRAME.registerComponent('final-exit', {
+  init:function(){
+    this.key=e=>{
+      if(e.code!=='KeyE')return;
+      const p=document.querySelector('#player');if(!p)return;
+      const a=new THREE.Vector3(),b=new THREE.Vector3();
+      p.object3D.getWorldPosition(a);this.el.object3D.getWorldPosition(b);
+      if(a.distanceTo(b)>3)return;
+      const letters=document.querySelector('#letter-status');
+      const letterDone=letters && letters.textContent.includes('Ganaste');
+      const ok=window.FUN_POWER_RESTORED && window.FUN_PARKOUR_DONE &&
+        window.FUN_ARCADE_DONE && window.FUN_BASKET_DONE &&
+        window.FUN_GIFTS_DONE && window.FUN_KEYS && window.FUN_KEYS.size>=3 && letterDone;
+      if(ok){
+        document.body.insertAdjacentHTML('beforeend','<div id="escape-win" style="position:fixed;inset:0;z-index:99999;background:#08090b;color:#eee;display:flex;align-items:center;justify-content:center;font:700 44px Arial">ESCAPASTE</div>');
+      }else funHud('TODAVÍA FALTAN OBJETIVOS',2200);
+    };window.addEventListener('keydown',this.key);
+  }
+});
+
+AFRAME.registerComponent('random-events', {
+  init:function(){
+    setInterval(()=>{
+      if(Math.random()>.55)return;
+      const lights=[...document.querySelectorAll('.blackout-light')];
+      if(lights.length){
+        const l=lights[Math.floor(Math.random()*lights.length)];
+        const old=l.getAttribute('light').intensity||1;
+        l.setAttribute('light','intensity',0);
+        setTimeout(()=>l.setAttribute('light','intensity',old),180+Math.random()*420);
+      }
+      if(Math.random()>.65) funHud('ALGO SE MOVIÓ CERCA...',900);
+    },7000);
+  }
+});
+
+AFRAME.registerComponent('monster-cube-drop', {
+  init:function(){this.dropped=false;},
+  tick:function(){
+    if(this.dropped)return;
+    const p=document.querySelector('#player');if(!p)return;
+    const a=new THREE.Vector3(),b=new THREE.Vector3();
+    p.object3D.getWorldPosition(a);this.el.object3D.getWorldPosition(b);
+    if(a.distanceTo(b)<5){
+      this.dropped=true;
+      const cube=document.createElement('a-box');
+      cube.classList.add('letter-cube');
+      cube.dataset.letter='!';
+      cube.setAttribute('position',`${b.x+1} 1 ${b.z+1}`);
+      cube.setAttribute('width','.8');cube.setAttribute('height','.8');cube.setAttribute('depth','.8');
+      cube.setAttribute('material','color:#6D5A88; emissive:#31273F; emissiveIntensity:.55');
+      this.el.sceneEl.appendChild(cube);
+      funHud('EL MONSTRUO SOLTÓ UN CUBITO');
+    }
+  }
+});
+
+</script>
+
+
+<script>
+AFRAME.registerComponent('party-hat-reward', {
+  init: function () {
+    this.player = document.querySelector('#player');
+    this.claimed = false;
+  },
+  tick: function () {
+    if (this.claimed || !this.player) return;
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    this.el.object3D.getWorldPosition(a);
+    this.player.object3D.getWorldPosition(b);
+    if (a.distanceTo(b) < 1.5) {
+      this.claimed = true;
+      this.el.setAttribute('visible', false);
+
+      const msg = document.querySelector('#pickup-message');
+      if (msg) {
+        msg.setAttribute('value', '¡PARKOUR COMPLETADO!  GANASTE UN GORRITO DE FIESTA');
+        msg.setAttribute('visible', true);
+        setTimeout(() => msg.setAttribute('visible', false), 3500);
+      }
+
+      // Gorrito visible en la cámara como recompensa permanente.
+      const cam = document.querySelector('#player');
+      if (cam && !document.querySelector('#reward-party-hat')) {
+        const hat = document.createElement('a-entity');
+        hat.id = 'reward-party-hat';
+        hat.setAttribute('position', '0 1.05 0');
+        hat.innerHTML = `
+          <a-cone position="0 .23 0" radius-bottom=".22" radius-top=".025"
+            height=".48" color="#E85D75"></a-cone>
+          <a-sphere position="0 .50 0" radius=".055" color="#F5D35D"></a-sphere>
+          <a-torus position="0 .01 0" rotation="90 0 0"
+            radius=".22" radius-tubular=".025" color="#62B7C8"></a-torus>`;
+        cam.appendChild(hat);
+      }
+    }
+  }
+});
+</script>
+
+</head>
+
+
+
+
+
+
+
+<body>
+
+
+
+
+
+
+  
+  
+  
+  
+  <div id="objective-status" style="
+    display:none; position:fixed; left:50%; top:13%; transform:translateX(-50%);
+    z-index:25000; padding:10px 16px; border-radius:6px;
+    background:rgba(10,14,17,.88); color:#F0E9D8;
+    font:700 15px Arial,sans-serif; letter-spacing:1px; pointer-events:none;">
+  </div>
+  <div id="battery-status" style="
+    position:fixed; right:12px; top:48px; z-index:25000;
+    padding:7px 10px; border-radius:5px; background:rgba(10,14,17,.82);
+    color:#F0E9D8; font:12px Arial,sans-serif; pointer-events:none;">
+    Linterna: 100%
+  </div>
+
+  <div id="game-over-screen" style="
+    display:none; position:fixed; inset:0; z-index:20000;
+    background:rgba(0,0,0,.94); color:#eee7d6;
+    align-items:center; justify-content:center; flex-direction:column;
+    font-family:Arial,sans-serif; pointer-events:none;">
+    <div style="font-size:34px; font-weight:bold; letter-spacing:3px;">TE ATRAPARON</div>
+    <div style="font-size:15px; margin-top:10px; opacity:.8;">Regresando al inicio...</div>
+  </div>
+
+  <div id="food-status" style="
+    display:none; position:fixed; left:50%; bottom:70px; transform:translateX(-50%);
+    z-index:10000; background:rgba(15,16,20,.82); color:#f3ead8;
+    padding:10px 14px; border-radius:8px; font:14px Arial,sans-serif;
+    pointer-events:none;">
+  </div>
+
+  <div id="letter-status" style="
+    position:fixed; right:14px; top:14px; z-index:9999;
+    background:rgba(12,14,20,.78); color:#f2f0e8; padding:10px 13px;
+    border-radius:8px; font:14px/1.35 Arial,sans-serif; pointer-events:none;">
+    Cubitos: 0/4
+  </div>
+  <div id="blackout-notice" style="
+    display:none; position:fixed; left:50%; top:18%; transform:translateX(-50%);
+    z-index:10000; background:rgba(0,0,0,.88); color:#f4ead3; padding:14px 18px;
+    border-radius:8px; font:16px Arial,sans-serif; pointer-events:none;">
+    Las luces se apagaron · L controla la linterna
+  </div>
+
+  <div id="game-help" style="
+    position:fixed; left:14px; bottom:14px; z-index:9999;
+    background:rgba(12,14,20,.72); color:#f2f0e8;
+    padding:10px 13px; border-radius:8px;
+    font:14px/1.35 Arial,sans-serif; pointer-events:none;">
+    WASD mover · SHIFT correr · ESPACIO saltar · E interactuar/pelota · Q comer · L linterna · H esconderse
+  </div>
+
+
+<div style="position:fixed;right:14px;bottom:14px;z-index:9999;max-width:340px;background:rgba(8,9,12,.8);color:#eee;padding:9px 12px;border-radius:8px;font:13px Arial,sans-serif;pointer-events:none;">E: interruptores, botones y arcade · H: esconderse · pilas/llaves: recoger al acercarte</div>
+<a-scene letter-hunt blackout-event="triggerZ:-120" blackout-killer-system
+
+
+
+  background="color:#08090B"
+
+
+
+  renderer="
+
+    antialias:true;
+
+    colorManagement:true;
+
+    physicallyCorrectLights:true;
+
+    shadowMapEnabled:true;
+
+  "
+
+
+
+  shadow="type:pcfsoft" flash-battery parkour-fall-death proximity-audio random-events>
+
+
+
+
+
+  
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                         ILUMINACIÓN
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity
+
+    light="
+
+      type:ambient;
+
+      color:#FFF8E8;
+
+      intensity:0.65">
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- PRIMER SALÓN -->
+
+
+
+
+
+  <a-entity
+
+    position="-9 6.6 -13"
+
+
+
+    light="
+
+      type:point;
+
+      color:#FFF8E8;
+
+      intensity:13;
+
+      distance:22;
+
+      decay:2">
+
+  </a-entity>
+
+
+
+
+
+  <a-entity
+
+    position="9 6.6 -13"
+
+
+
+    light="
+
+      type:point;
+
+      color:#FFF8E8;
+
+      intensity:13;
+
+      distance:22;
+
+      decay:2">
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- PASILLO -->
+
+
+
+
+
+  <a-entity
+
+    position="0 6.6 -43"
+
+
+
+    light="
+
+      type:point;
+
+      color:#FFF8E8;
+
+      intensity:13;
+
+      distance:24;
+
+      decay:2">
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- PARTE CENTRAL -->
+
+
+
+
+
+  <a-entity
+
+    position="-20 6.6 -62"
+
+
+
+    light="
+
+      type:point;
+
+      color:#FFF8E8;
+
+      intensity:12;
+
+      distance:25;
+
+      decay:2">
+
+  </a-entity>
+
+
+
+
+
+  <a-entity
+
+    position="20 6.6 -62"
+
+
+
+    light="
+
+      type:point;
+
+      color:#FFF8E8;
+
+      intensity:12;
+
+      distance:25;
+
+      decay:2">
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- FONDO -->
+
+
+
+
+
+  <a-entity
+
+    position="0 6.6 -90"
+
+
+
+    light="
+
+      type:point;
+
+      color:#FFF8E8;
+
+      intensity:14;
+
+      distance:28;
+
+      decay:2">
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                             PISO
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity party-floor></a-entity>
+
+
+
+
+
+
+
+  <!-- piso base para evitar huecos -->
+
+
+
+
+
+  <a-plane
+
+
+
+    position="0 -0.03 -55"
+
+
+
+    rotation="-90 0 0"
+
+
+
+    width="80"
+
+    height="120"
+
+
+
+    material="
+
+      color:#D7D3C8;
+
+      roughness:0.95">
+
+
+
+  </a-plane>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                             TECHO
+
+  ======================================================== -->
+
+
+
+
+
+  <a-box
+
+
+
+    position="0 7 -55"
+
+
+
+    width="80"
+
+    height="0.25"
+
+    depth="120"
+
+
+
+    material="
+
+      color:#BDBDB8;
+
+      roughness:0.95">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                   PAREDES EXTERIORES ENORMES
+
+  ======================================================== -->
+
+
+
+
+
+  <!-- IZQUIERDA -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-40 3.5 -55"
+
+
+
+    width="0.5"
+
+    height="7"
+
+    depth="120"
+
+
+
+    material="
+
+      color:#D48B17;
+
+      roughness:0.88">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- DERECHA -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="40 3.5 -55"
+
+
+
+    width="0.5"
+
+    height="7"
+
+    depth="120"
+
+
+
+    material="
+
+      color:#397E9D;
+
+      roughness:0.88">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- FONDO -->
+
+
+
+
+
+
+
+  <!-- FRENTE IZQUIERDO -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-25 3.5 5"
+
+
+
+    width="30"
+
+    height="7"
+
+    depth="0.5"
+
+
+
+    material="
+
+      color:#477E9D;
+
+      roughness:0.88">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- FRENTE DERECHO -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="25 3.5 5"
+
+
+
+    width="30"
+
+    height="7"
+
+    depth="0.5"
+
+
+
+    material="
+
+      color:#477E9D;
+
+      roughness:0.88">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                     PRIMERA HABITACIÓN
+
+
+
+       ESTA ES LA QUE QUERÍAS CONSERVAR.
+
+  ======================================================== -->
+
+
+
+
+
+
+
+  <!-- PARED IZQUIERDA NARANJA -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-19 3.5 -12.5"
+
+
+
+    width="0.4"
+
+    height="7"
+
+    depth="35"
+
+
+
+    material="
+
+      color:#D58A16;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- PARED DERECHA CORAL -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="19 3.5 -12.5"
+
+
+
+    width="0.4"
+
+    height="7"
+
+    depth="35"
+
+
+
+    material="
+
+      color:#C4514D;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                    PARED AZUL DEL FONDO
+
+
+
+        Tiene una puerta central invisible visualmente:
+
+        las partes inferiores dejan paso después.
+
+  ======================================================== -->
+
+
+
+
+
+  <!-- IZQUIERDA -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-11.5 3.5 -30"
+
+
+
+    width="15"
+
+    height="7"
+
+    depth="0.4"
+
+
+
+    material="
+
+      color:#087DA6;
+
+      roughness:0.88">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- DERECHA -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="11.5 3.5 -30"
+
+
+
+    width="15"
+
+    height="7"
+
+    depth="0.4"
+
+
+
+    material="
+
+      color:#087DA6;
+
+      roughness:0.88">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- PARTE SUPERIOR SOBRE LA PUERTA -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="0 6 -30"
+
+
+
+    width="8"
+
+    height="2"
+
+    depth="0.4"
+
+
+
+    material="
+
+      color:#087DA6;
+
+      roughness:0.88">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- Cierra el hueco REAL entre el marco (hasta y=4.325) y el muro (desde y=5) -->
+  <a-box class="solid" position="0 4.66 -30" width="8" height="0.72" depth="0.45" material="color:#087DA6; roughness:0.88"></a-box>
+
+  <!-- Relleno sobre el marco: une la pared azul con el techo sin dejar rendija -->
+  <a-box class="solid" position="0 6.94 -30" width="8.1" height="0.18" depth="0.45" material="color:#087DA6; roughness:0.88"></a-box>
+
+  <!-- =======================================================
+
+                   BANDERINES PEGADOS ARRIBA
+
+
+
+           Ya NO pasan por las letras.
+
+  ======================================================== -->
+
+
+
+
+
+  <!-- Guirnalda visible desde ambos lados de la puerta -->
+  <a-entity position="0 6.30 -29.48">
+    <a-box position="0 0 0" width="30" height="0.035" depth="0.035" color="#F0E5CF"></a-box>
+    <a-triangle position="-14 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#E34E51; side:double; shader:flat"></a-triangle>
+    <a-triangle position="-12 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#E6B932; side:double; shader:flat"></a-triangle>
+    <a-triangle position="-10 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#328FC0; side:double; shader:flat"></a-triangle>
+    <a-triangle position="-8 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#65AD65; side:double; shader:flat"></a-triangle>
+    <a-triangle position="-6 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#A965B8; side:double; shader:flat"></a-triangle>
+    <a-triangle position="-4 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#ED8943; side:double; shader:flat"></a-triangle>
+    <a-triangle position="-2 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#E34E51; side:double; shader:flat"></a-triangle>
+    <a-triangle position="0 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#E6B932; side:double; shader:flat"></a-triangle>
+    <a-triangle position="2 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#328FC0; side:double; shader:flat"></a-triangle>
+    <a-triangle position="4 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#65AD65; side:double; shader:flat"></a-triangle>
+    <a-triangle position="6 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#A965B8; side:double; shader:flat"></a-triangle>
+    <a-triangle position="8 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#ED8943; side:double; shader:flat"></a-triangle>
+    <a-triangle position="10 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#E34E51; side:double; shader:flat"></a-triangle>
+    <a-triangle position="12 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#E6B932; side:double; shader:flat"></a-triangle>
+    <a-triangle position="14 0 0" vertex-a="-0.72 0 0" vertex-b="0.72 0 0" vertex-c="0 -0.95 0" material="color:#328FC0; side:double; shader:flat"></a-triangle>
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- Letras reunidas en la pared izquierda, con colores originales -->
+  <a-text value="H" position="-15.600 3.95 -29.72" align="center" anchor="center" baseline="center" width="16" color="#FFD43B" shader="flat" side="double"></a-text>
+  <a-text value="A" position="-13.550 3.95 -29.72" align="center" anchor="center" baseline="center" width="16" color="#FF6B6B" shader="flat" side="double"></a-text>
+  <a-text value="P" position="-11.500 3.95 -29.72" align="center" anchor="center" baseline="center" width="16" color="#69DB7C" shader="flat" side="double"></a-text>
+  <a-text value="P" position="-9.450 3.95 -29.72" align="center" anchor="center" baseline="center" width="16" color="#4DABF7" shader="flat" side="double"></a-text>
+  <a-text value="Y" position="-7.400 3.95 -29.72" align="center" anchor="center" baseline="center" width="16" color="#DA77F2" shader="flat" side="double"></a-text>
+  <a-text value="B" position="-17.275 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#FF922B" shader="flat" side="double"></a-text>
+  <a-text value="I" position="-15.625 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#FFD43B" shader="flat" side="double"></a-text>
+  <a-text value="R" position="-13.975 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#4DABF7" shader="flat" side="double"></a-text>
+  <a-text value="T" position="-12.325 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#69DB7C" shader="flat" side="double"></a-text>
+  <a-text value="H" position="-10.675 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#DA77F2" shader="flat" side="double"></a-text>
+  <a-text value="D" position="-9.025 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#FF6B6B" shader="flat" side="double"></a-text>
+  <a-text value="A" position="-7.375 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#FFD43B" shader="flat" side="double"></a-text>
+  <a-text value="Y" position="-5.725 2.60 -29.72" align="center" anchor="center" baseline="center" width="16" color="#69DB7C" shader="flat" side="double"></a-text>
+
+
+    <!-- DOS PÓSTERES PERSONALIZABLES EN LA PARED DERECHA -->
+  <!-- Pon poster1.png y poster2.png junto a este HTML. -->
+  <!-- También puedes usar JPG cambiando la extensión en src. -->
+  <!-- Ambos están debajo de los banderines y tienen marcos independientes. -->
+  <a-plane position="8.5 2.95 -29.69" width="2.95" height="4.10"
+           material="color:#E8E0CF; roughness:1; side:double"></a-plane>
+  <a-image id="poster-pared-derecha-1" src="poster1.png"
+           position="8.5 2.95 -29.65" width="2.75" height="3.90"
+           material="shader:flat; side:double"></a-image>
+
+  <a-plane position="14.2 2.95 -29.69" width="2.95" height="4.10"
+           material="color:#E8E0CF; roughness:1; side:double"></a-plane>
+  <a-image id="poster-pared-derecha-2" src="poster2.png"
+           position="14.2 2.95 -29.65" width="2.75" height="3.90"
+           material="shader:flat; side:double"></a-image>
+
+<!-- =======================================================
+
+                         MESA IZQUIERDA
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity position="-10 0 -13">
+
+
+
+
+
+    <!-- TABLERO -->
+
+
+
+
+
+    <a-box
+
+
+
+      class="solid"
+
+
+
+      position="0 1 0"
+
+
+
+      width="4.3"
+
+      height="0.18"
+
+      depth="10"
+
+
+
+      material="
+
+        color:#ECE9DF;
+
+        roughness:0.85"
+
+
+
+      shadow="
+
+        cast:true;
+
+        receive:true">
+
+
+
+    </a-box>
+
+
+
+
+
+
+
+    <!-- SEGUNDA CAPA DEL MANTEL -->
+
+
+
+
+
+    <a-box
+
+
+
+      position="0 0.91 0"
+
+
+
+      width="4.4"
+
+      height="0.05"
+
+      depth="10.1"
+
+
+
+      material="
+
+        color:#DAD7CD;
+
+        roughness:0.9">
+
+
+
+    </a-box>
+
+
+
+
+
+
+
+    <!-- PATAS -->
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.5 0.5 -4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.5 0.5 -4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.5 0.5 4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.5 0.5 4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <!-- BANCAS -->
+
+
+
+
+
+    <a-box
+
+
+
+      class="solid"
+
+
+
+      position="-3 0.55 0"
+
+
+
+      width="0.7"
+
+      height="0.18"
+
+      depth="9"
+
+
+
+      material="
+
+        color:#A28E75;
+
+        roughness:0.9">
+
+
+
+    </a-box>
+
+
+
+
+
+    <a-box
+
+
+
+      class="solid"
+
+
+
+      position="3 0.55 0"
+
+
+
+      width="0.7"
+
+      height="0.18"
+
+      depth="9"
+
+
+
+      material="
+
+        color:#A28E75;
+
+        roughness:0.9">
+
+
+
+    </a-box>
+
+
+
+
+
+
+
+    <!-- PLATOS -->
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.1 1.12 -3.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#D84D47">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.1 1.12 -3.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#3183B1">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.1 1.12 -1"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#D4AF26">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.1 1.12 -1"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#4B9856">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.1 1.12 1.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#3183B1">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.1 1.12 1.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#D84D47">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.1 1.12 3.4"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#4B9856">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.1 1.12 3.4"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#D4AF26">
+
+    </a-cylinder>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                          MESA DERECHA
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity position="10 0 -13">
+
+
+
+
+
+    <a-box
+
+
+
+      class="solid"
+
+
+
+      position="0 1 0"
+
+
+
+      width="4.3"
+
+      height="0.18"
+
+      depth="10"
+
+
+
+      material="
+
+        color:#ECE9DF;
+
+        roughness:0.85"
+
+
+
+      shadow="
+
+        cast:true;
+
+        receive:true">
+
+
+
+    </a-box>
+
+
+
+
+
+    <a-box
+
+
+
+      position="0 0.91 0"
+
+
+
+      width="4.4"
+
+      height="0.05"
+
+      depth="10.1"
+
+
+
+      material="
+
+        color:#DAD7CD;
+
+        roughness:0.9">
+
+
+
+    </a-box>
+
+
+
+
+
+
+
+    <!-- PATAS -->
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.5 0.5 -4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.5 0.5 -4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.5 0.5 4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.5 0.5 4"
+
+      radius="0.08"
+
+      height="1"
+
+      color="#2C2C2C">
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <!-- BANCAS -->
+
+
+
+
+
+    <a-box
+
+
+
+      class="solid"
+
+
+
+      position="-3 0.55 0"
+
+
+
+      width="0.7"
+
+      height="0.18"
+
+      depth="9"
+
+
+
+      color="#A28E75">
+
+
+
+    </a-box>
+
+
+
+
+
+    <a-box
+
+
+
+      class="solid"
+
+
+
+      position="3 0.55 0"
+
+
+
+      width="0.7"
+
+      height="0.18"
+
+      depth="9"
+
+
+
+      color="#A28E75">
+
+
+
+    </a-box>
+
+
+
+
+
+
+
+    <!-- PLATOS -->
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.1 1.12 -3.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#D84D47">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.1 1.12 -3.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#3183B1">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.1 1.12 -1"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#D4AF26">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.1 1.12 -1"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#4B9856">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1.1 1.12 1.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#3183B1">
+
+    </a-cylinder>
+
+
+
+
+
+    <a-cylinder
+
+      position="1.1 1.12 1.2"
+
+      radius="0.33"
+
+      height="0.025"
+
+      color="#D84D47">
+
+    </a-cylinder>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                             PASTEL
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity position="10 0 -14">
+
+
+
+
+
+    <a-cylinder
+
+
+
+      position="0 1.35 0"
+
+
+
+      radius="0.9"
+
+      height="0.45"
+
+
+
+      material="
+
+        color:#C77B96;
+
+        roughness:0.65">
+
+
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <a-cylinder
+
+
+
+      position="0 1.72 0"
+
+
+
+      radius="0.62"
+
+      height="0.3"
+
+
+
+      material="
+
+        color:#D7D09B;
+
+        roughness:0.65">
+
+
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <!-- VELA 1 -->
+
+
+
+
+
+    <a-cylinder
+
+
+
+      position="-0.25 2.1 0"
+
+
+
+      radius="0.035"
+
+      height="0.45"
+
+
+
+      color="#3183B1">
+
+
+
+    </a-cylinder>
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="-0.25 2.37 0"
+
+
+
+      radius="0.075"
+
+
+
+      material="
+
+        color:#FFD43B;
+
+        emissive:#FF9800;
+
+        emissiveIntensity:2">
+
+
+
+    </a-sphere>
+
+
+
+
+
+
+
+    <!-- VELA 2 -->
+
+
+
+
+
+    <a-cylinder
+
+
+
+      position="0.25 2.1 0"
+
+
+
+      radius="0.035"
+
+      height="0.45"
+
+
+
+      color="#D84D47">
+
+
+
+    </a-cylinder>
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="0.25 2.37 0"
+
+
+
+      radius="0.075"
+
+
+
+      material="
+
+        color:#FFD43B;
+
+        emissive:#FF9800;
+
+        emissiveIntensity:2">
+
+
+
+    </a-sphere>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                     GLOBOS - ESQUINA IZQUIERDA
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity
+
+
+
+    position="-16 0 -20"
+
+
+
+    balloon-float>
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="-1 4 0"
+
+
+
+      radius="0.6"
+
+
+
+      scale="0.82 1.15 0.82"
+
+
+
+      material="
+
+        color:#A63232;
+
+        roughness:0.28">
+
+
+
+    </a-sphere>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1 2.4 0"
+
+      radius="0.008"
+
+      height="2.7"
+
+      color="#D4D4C7">
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="0 4.8 0"
+
+
+
+      radius="0.6"
+
+
+
+      scale="0.82 1.15 0.82"
+
+
+
+      material="
+
+        color:#B59A18;
+
+        roughness:0.28">
+
+
+
+    </a-sphere>
+
+
+
+
+
+    <a-cylinder
+
+      position="0 2.8 0"
+
+      radius="0.008"
+
+      height="3.4"
+
+      color="#D4D4C7">
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="1 4 0"
+
+
+
+      radius="0.6"
+
+
+
+      scale="0.82 1.15 0.82"
+
+
+
+      material="
+
+        color:#2474A3;
+
+        roughness:0.28">
+
+
+
+    </a-sphere>
+
+
+
+
+
+    <a-cylinder
+
+      position="1 2.4 0"
+
+      radius="0.008"
+
+      height="2.7"
+
+      color="#D4D4C7">
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="0.4 5.5 0"
+
+
+
+      radius="0.6"
+
+
+
+      scale="0.82 1.15 0.82"
+
+
+
+      material="
+
+        color:#377F43;
+
+        roughness:0.28">
+
+
+
+    </a-sphere>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                     GLOBOS - ESQUINA DERECHA
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity
+
+
+
+    position="16 0 -20"
+
+
+
+    balloon-float>
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="-1 4 0"
+
+
+
+      radius="0.6"
+
+
+
+      scale="0.82 1.15 0.82"
+
+
+
+      material="
+
+        color:#853B94;
+
+        roughness:0.28">
+
+
+
+    </a-sphere>
+
+
+
+
+
+    <a-cylinder
+
+      position="-1 2.4 0"
+
+      radius="0.008"
+
+      height="2.7"
+
+      color="#D4D4C7">
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="0 4.9 0"
+
+
+
+      radius="0.6"
+
+
+
+      scale="0.82 1.15 0.82"
+
+
+
+      material="
+
+        color:#A63232;
+
+        roughness:0.28">
+
+
+
+    </a-sphere>
+
+
+
+
+
+    <a-cylinder
+
+      position="0 2.85 0"
+
+      radius="0.008"
+
+      height="3.5"
+
+      color="#D4D4C7">
+
+    </a-cylinder>
+
+
+
+
+
+
+
+    <a-sphere
+
+
+
+      position="1 4 0"
+
+
+
+      radius="0.6"
+
+
+
+      scale="0.82 1.15 0.82"
+
+
+
+      material="
+
+        color:#B59A18;
+
+        roughness:0.28">
+
+
+
+    </a-sphere>
+
+
+
+
+
+    <a-cylinder
+
+      position="1 2.4 0"
+
+      radius="0.008"
+
+      height="2.7"
+
+      color="#D4D4C7">
+
+    </a-cylinder>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                             REGALOS
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity position="-15 0 -27">
+
+
+
+
+
+    <a-box
+
+
+
+      position="0 0.55 0"
+
+
+
+      width="1.1"
+
+      height="1.1"
+
+      depth="1.1"
+
+
+
+      color="#B93E3A">
+
+
+
+    </a-box>
+
+
+
+
+
+    <a-box
+
+
+
+      position="0 0.55 0"
+
+
+
+      width="0.15"
+
+      height="1.15"
+
+      depth="1.15"
+
+
+
+      color="#C8A91F">
+
+
+
+    </a-box>
+
+
+
+
+
+
+
+    <a-box
+
+
+
+      position="1.4 0.45 0"
+
+
+
+      width="0.9"
+
+      height="0.9"
+
+      depth="0.9"
+
+
+
+      color="#337FA7">
+
+
+
+    </a-box>
+
+
+
+
+
+    <a-box
+
+
+
+      position="1.4 0.45 0"
+
+
+
+      width="0.12"
+
+      height="0.95"
+
+      depth="0.95"
+
+
+
+      color="#D9D4B9">
+
+
+
+    </a-box>
+
+
+
+
+
+
+
+    <a-box
+
+
+
+      position="2.6 0.65 0"
+
+
+
+      width="1"
+
+      height="1.3"
+
+      depth="1"
+
+
+
+      color="#498A4D">
+
+
+
+    </a-box>
+
+
+
+
+
+    <a-box
+
+
+
+      position="2.6 0.65 0"
+
+
+
+      width="0.13"
+
+      height="1.35"
+
+      depth="1.05"
+
+
+
+      color="#B83F3D">
+
+
+
+    </a-box>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                      LUCES DEL PRIMER SALÓN
+
+  ======================================================== -->
+
+
+
+
+
+  <a-box
+
+
+
+    position="-10 6.82 -10"
+
+
+
+    width="5"
+
+    height="0.08"
+
+    depth="1"
+
+
+
+    material="
+
+      color:#FFFDF2;
+
+      emissive:#FFF9DC;
+
+      emissiveIntensity:1.1">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <a-box
+
+
+
+    position="0 6.82 -10"
+
+
+
+    width="5"
+
+    height="0.08"
+
+    depth="1"
+
+
+
+    material="
+
+      color:#FFFDF2;
+
+      emissive:#FFF9DC;
+
+      emissiveIntensity:1.1">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <a-box
+
+
+
+    position="10 6.82 -10"
+
+
+
+    width="5"
+
+    height="0.08"
+
+    depth="1"
+
+
+
+    material="
+
+      color:#FFFDF2;
+
+      emissive:#FFF9DC;
+
+      emissiveIntensity:1.1">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                         PASILLO CENTRAL
+
+
+
+          Empieza después del primer salón.
+
+  ======================================================== -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-8 3.5 -48"
+
+
+
+    width="0.4"
+
+    height="7"
+
+    depth="36"
+
+
+
+    material="
+
+      color:#C78C28;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="8 3.5 -48"
+
+
+
+    width="0.4"
+
+    height="7"
+
+    depth="36"
+
+
+
+    material="
+
+      color:#4A829D;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- LUCES PASILLO -->
+
+
+
+
+
+  <a-box
+
+
+
+    position="0 6.82 -40"
+
+
+
+    width="4"
+
+    height="0.08"
+
+    depth="0.9"
+
+
+
+    material="
+
+      color:#FFFDF2;
+
+      emissive:#FFF9DC;
+
+      emissiveIntensity:1">
+
+
+
+  </a-box>
+
+
+
+
+
+  <a-box
+
+
+
+    position="0 6.82 -52"
+
+
+
+    width="4"
+
+    height="0.08"
+
+    depth="0.9"
+
+
+
+    material="
+
+      color:#FFFDF2;
+
+      emissive:#FFF9DC;
+
+      emissiveIntensity:1">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                  HABITACIÓN GRANDE IZQUIERDA
+
+  ======================================================== -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-24 3.5 -40"
+
+
+
+    width="32"
+
+    height="7"
+
+    depth="0.4"
+
+
+
+    material="
+
+      color:#A24C83;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-24 3.5 -66"
+
+
+
+    width="32"
+
+    height="7"
+
+    depth="0.4"
+
+
+
+    material="
+
+      color:#A24C83;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- decoración globos -->
+
+
+
+
+
+  <a-entity
+
+    position="-30 0 -55"
+
+    balloon-float>
+
+
+
+
+
+    <a-sphere
+
+      position="-1 4 0"
+
+      radius="0.65"
+
+      scale=".82 1.15 .82"
+
+      color="#C74242">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="0 4.8 0"
+
+      radius="0.65"
+
+      scale=".82 1.15 .82"
+
+      color="#D0A92B">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="1 4 0"
+
+      radius="0.65"
+
+      scale=".82 1.15 .82"
+
+      color="#3784AD">
+
+    </a-sphere>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                   HABITACIÓN GRANDE DERECHA
+
+  ======================================================== -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="24 3.5 -40"
+
+
+
+    width="32"
+
+    height="7"
+
+    depth="0.4"
+
+
+
+    material="
+
+      color:#57925D;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="24 3.5 -66"
+
+
+
+    width="32"
+
+    height="7"
+
+    depth="0.4"
+
+
+
+    material="
+
+      color:#57925D;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <a-entity
+
+    position="30 0 -55"
+
+    balloon-float>
+
+
+
+
+
+    <a-sphere
+
+      position="-1 4 0"
+
+      radius="0.65"
+
+      scale=".82 1.15 .82"
+
+      color="#80499C">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="0 4.8 0"
+
+      radius="0.65"
+
+      scale=".82 1.15 .82"
+
+      color="#C54A45">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="1 4 0"
+
+      radius="0.65"
+
+      scale=".82 1.15 .82"
+
+      color="#D0A92B">
+
+    </a-sphere>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                       GRAN SALÓN DEL FONDO
+
+  ======================================================== -->
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="-25 3.5 -90"
+
+
+
+    width="0.4"
+
+    height="7"
+
+    depth="40"
+
+
+
+    material="
+
+      color:#76509B;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+  <a-box
+
+
+
+    class="solid"
+
+
+
+    position="25 3.5 -90"
+
+
+
+    width="0.4"
+
+    height="7"
+
+    depth="40"
+
+
+
+    material="
+
+      color:#C77C27;
+
+      roughness:0.9">
+
+
+
+  </a-box>
+
+
+
+
+
+
+
+  <!-- =======================================================
+
+                        ARCO DE GLOBOS
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity position="0 0 -92">
+
+
+
+
+
+    <!-- IZQUIERDA -->
+
+
+
+
+
+    <a-sphere
+
+      position="-5 2 0"
+
+      radius=".7"
+
+      color="#C84A45">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="-5 3.2 0"
+
+      radius=".7"
+
+      color="#D1AA2B">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="-4.6 4.4 0"
+
+      radius=".7"
+
+      color="#3C83A8">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="-3.7 5.3 0"
+
+      radius=".7"
+
+      color="#57945C">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="-2.5 5.8 0"
+
+      radius=".7"
+
+      color="#87519B">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="-1.2 6.1 0"
+
+      radius=".7"
+
+      color="#C84A45">
+
+    </a-sphere>
+
+
+
+
+
+
+
+    <!-- CENTRO -->
+
+
+
+
+
+    <a-sphere
+
+      position="0 6.2 0"
+
+      radius=".7"
+
+      color="#D1AA2B">
+
+    </a-sphere>
+
+
+
+
+
+
+
+    <!-- DERECHA -->
+
+
+
+
+
+    <a-sphere
+
+      position="1.2 6.1 0"
+
+      radius=".7"
+
+      color="#3C83A8">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="2.5 5.8 0"
+
+      radius=".7"
+
+      color="#57945C">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="3.7 5.3 0"
+
+      radius=".7"
+
+      color="#87519B">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="4.6 4.4 0"
+
+      radius=".7"
+
+      color="#C84A45">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="5 3.2 0"
+
+      radius=".7"
+
+      color="#D1AA2B">
+
+    </a-sphere>
+
+
+
+
+
+    <a-sphere
+
+      position="5 2 0"
+
+      radius=".7"
+
+      color="#3C83A8">
+
+    </a-sphere>
+
+
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  <!--
+
+
+
+  MÁQUINA ARCADE:
+
+
+
+  <a-entity
+
+
+
+      position="-34 0 -75"
+
+
+
+      rotation="0 90 0"
+
+
+
+      scale="1 1 1"
+
+
+
+      shadow="
+
+        cast:true;
+
+        receive:true">
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  OTRA MÁQUINA:
+
+
+
+  <a-entity
+
+
+
+      position="-34 0 -79"
+
+
+
+      rotation="0 90 0"
+
+
+
+      scale="1 1 1"
+
+
+
+      shadow="
+
+        cast:true;
+
+        receive:true">
+
+
+
+  </a-entity>
+
+
+
+
+
+
+
+  PIZZA:
+
+
+
+  <a-entity
+
+
+
+      position="-10 1.15 -13"
+
+
+
+      rotation="0 0 0"
+
+
+
+      scale=".5 .5 .5">
+
+
+
+  </a-entity>
+
+
+
+
+
+  -->
+
+
+
+
+
+
+
+  
+  <!-- =======================================================
+       OBJETOS EXTRA HECHOS SOLO CON FIGURAS BÁSICAS
+       La primera habitación y la distribución anterior
+       permanecen intactas.
+  ======================================================== -->
+
+  <!-- PIZZAS -->
+  <a-entity position="-10 1.16 -14.2">
+    <a-cylinder radius="0.72" height="0.08" color="#B97938"></a-cylinder>
+    <a-cylinder position="0 0.055 0" radius="0.64" height="0.04" color="#E3B63E"></a-cylinder>
+    <a-torus position="0 0.085 0" rotation="90 0 0" radius="0.63" radius-tubular="0.055" color="#C98B45"></a-torus>
+    <a-cylinder position="-0.25 0.09 -0.18" radius="0.09" height="0.025" color="#A63B34"></a-cylinder>
+    <a-cylinder position="0.24 0.09 -0.22" radius="0.09" height="0.025" color="#A63B34"></a-cylinder>
+    <a-cylinder position="0.12 0.09 0.22" radius="0.09" height="0.025" color="#A63B34"></a-cylinder>
+    <a-cylinder position="-0.30 0.09 0.22" radius="0.09" height="0.025" color="#A63B34"></a-cylinder>
+  </a-entity>
+
+  <a-entity position="9.6 1.16 -11.4" rotation="0 20 0">
+    <a-cylinder radius="0.68" height="0.08" color="#B97938"></a-cylinder>
+    <a-cylinder position="0 0.055 0" radius="0.60" height="0.04" color="#E3B63E"></a-cylinder>
+    <a-torus position="0 0.085 0" rotation="90 0 0" radius="0.59" radius-tubular="0.055" color="#C98B45"></a-torus>
+    <a-cylinder position="-0.23 0.09 -0.16" radius="0.085" height="0.025" color="#A63B34"></a-cylinder>
+    <a-cylinder position="0.20 0.09 -0.18" radius="0.085" height="0.025" color="#A63B34"></a-cylinder>
+    <a-cylinder position="0.05 0.09 0.24" radius="0.085" height="0.025" color="#A63B34"></a-cylinder>
+  </a-entity>
+
+  <!-- VASOS -->
+  <a-entity position="-9.2 1.34 -11.7">
+    <a-cylinder radius="0.13" height="0.38" color="#D84D47"></a-cylinder>
+    <a-cylinder position="0 0.205 0" radius="0.145" height="0.035" color="#E9E5DA"></a-cylinder>
+    <a-cylinder position="0.035 0.48 0" radius="0.016" height="0.58" color="#F0EEE8"></a-cylinder>
+  </a-entity>
+  <a-entity position="-10.8 1.34 -9.5">
+    <a-cylinder radius="0.13" height="0.38" color="#2E7FA7"></a-cylinder>
+    <a-cylinder position="0 0.205 0" radius="0.145" height="0.035" color="#E9E5DA"></a-cylinder>
+    <a-cylinder position="-0.035 0.48 0" radius="0.016" height="0.58" color="#F0EEE8"></a-cylinder>
+  </a-entity>
+  <a-entity position="10.8 1.34 -9.8">
+    <a-cylinder radius="0.13" height="0.38" color="#D0A927"></a-cylinder>
+    <a-cylinder position="0 0.205 0" radius="0.145" height="0.035" color="#E9E5DA"></a-cylinder>
+    <a-cylinder position="0.035 0.48 0" radius="0.016" height="0.58" color="#F0EEE8"></a-cylinder>
+  </a-entity>
+
+  <!-- GORROS DE FIESTA -->
+  <a-entity position="-8.7 1.48 -15.8" rotation="0 0 -8">
+    <a-cone radius-bottom="0.25" radius-top="0" height="0.65" color="#A34B91"></a-cone>
+    <a-sphere position="0 0.36 0" radius="0.07" color="#E6B92F"></a-sphere>
+  </a-entity>
+  <a-entity position="8.8 1.48 -12.7" rotation="0 0 8">
+    <a-cone radius-bottom="0.25" radius-top="0" height="0.65" color="#2D7EA4"></a-cone>
+    <a-sphere position="0 0.36 0" radius="0.07" color="#D94A46"></a-sphere>
+  </a-entity>
+
+  <!-- MARCO / PUERTA DEL PASILLO -->
+  <a-entity position="0 0 -29.68">
+    <a-box position="-3.75 2.15 0" width="0.35" height="4.3" depth="0.28" color="#243E4B"></a-box>
+    <a-box position="3.75 2.15 0" width="0.35" height="4.3" depth="0.28" color="#243E4B"></a-box>
+    <a-box position="0 4.15 0" width="7.8" height="0.35" depth="0.28" color="#243E4B"></a-box>
+    <a-box position="-1.82 2.05 0.04" width="3.45" height="3.75" depth="0.10"
+      material="color:#2E7892; opacity:0.18; transparent:true"></a-box>
+    <a-box position="1.82 2.05 0.04" width="3.45" height="3.75" depth="0.10"
+      material="color:#2E7892; opacity:0.18; transparent:true"></a-box>
+    <a-cylinder position="-0.35 2.05 0.18" rotation="90 0 0" radius="0.07" height="0.10" color="#D2B25A"></a-cylinder>
+    <a-cylinder position="0.35 2.05 0.18" rotation="90 0 0" radius="0.07" height="0.10" color="#D2B25A"></a-cylinder>
+  </a-entity>
+
+  <!-- SILLAS -->
+  <a-entity position="-18 0 -54" rotation="0 35 0">
+    <a-box class="solid" position="0 0.65 0" width="1.15" height="0.15" depth="1.15" color="#D1B18A"></a-box>
+    <a-box position="0 1.35 0.50" width="1.15" height="1.25" depth="0.13" color="#C39A70"></a-box>
+    <a-cylinder position="-0.43 0.30 -0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+    <a-cylinder position="0.43 0.30 -0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+    <a-cylinder position="-0.43 0.30 0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+    <a-cylinder position="0.43 0.30 0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+  </a-entity>
+  <a-entity position="18 0 -54" rotation="0 -35 0">
+    <a-box class="solid" position="0 0.65 0" width="1.15" height="0.15" depth="1.15" color="#D1B18A"></a-box>
+    <a-box position="0 1.35 0.50" width="1.15" height="1.25" depth="0.13" color="#C39A70"></a-box>
+    <a-cylinder position="-0.43 0.30 -0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+    <a-cylinder position="0.43 0.30 -0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+    <a-cylinder position="-0.43 0.30 0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+    <a-cylinder position="0.43 0.30 0.42" radius="0.055" height="0.60" color="#343434"></a-cylinder>
+  </a-entity>
+
+  <!-- ARCADES: construidos con cajas, planos, cilindros y esferas -->
+  <a-entity position="-31 0 -76" rotation="0 90 0">
+    <a-box class="solid" position="0 1.35 0" width="1.45" height="2.70" depth="1.20" color="#49316E"></a-box>
+    <a-box position="0 2.58 -0.02" width="1.52" height="0.48" depth="1.25" color="#C84452"></a-box>
+    <a-box position="0 1.92 -0.615" rotation="-8 0 0" width="1.06" height="0.72" depth="0.05" color="#07151D"></a-box>
+    <a-plane position="0 1.92 -0.65" rotation="-8 0 0" width="0.84" height="0.52"
+      material="color:#39C6E3; emissive:#168CA7; emissiveIntensity:1.4"></a-plane>
+    <a-box position="0 1.34 -0.70" rotation="-12 0 0" width="1.30" height="0.18" depth="0.64" color="#28262C"></a-box>
+    <a-cylinder position="-0.30 1.55 -0.77" radius="0.04" height="0.25" color="#222"></a-cylinder>
+    <a-sphere position="-0.30 1.70 -0.77" radius="0.10" color="#D63E47"></a-sphere>
+    <a-cylinder position="0.18 1.48 -0.85" rotation="90 0 0" radius="0.075" height="0.04" color="#E2B72D"></a-cylinder>
+    <a-cylinder position="0.42 1.48 -0.85" rotation="90 0 0" radius="0.075" height="0.04" color="#3E9BC3"></a-cylinder>
+    <a-cylinder position="0.64 1.48 -0.85" rotation="90 0 0" radius="0.075" height="0.04" color="#D74A4A"></a-cylinder>
+  </a-entity>
+
+  <a-entity position="-31 0 -81" rotation="0 90 0">
+    <a-box class="solid" position="0 1.35 0" width="1.45" height="2.70" depth="1.20" color="#1F718B"></a-box>
+    <a-box position="0 2.58 -0.02" width="1.52" height="0.48" depth="1.25" color="#D0A72A"></a-box>
+    <a-box position="0 1.92 -0.615" rotation="-8 0 0" width="1.06" height="0.72" depth="0.05" color="#07151D"></a-box>
+    <a-plane position="0 1.92 -0.65" rotation="-8 0 0" width="0.84" height="0.52"
+      material="color:#7BD85E; emissive:#3B9C38; emissiveIntensity:1.2"></a-plane>
+    <a-box position="0 1.34 -0.70" rotation="-12 0 0" width="1.30" height="0.18" depth="0.64" color="#28262C"></a-box>
+    <a-cylinder position="-0.30 1.55 -0.77" radius="0.04" height="0.25" color="#222"></a-cylinder>
+    <a-sphere position="-0.30 1.70 -0.77" radius="0.10" color="#D0A72A"></a-sphere>
+    <a-cylinder position="0.20 1.48 -0.85" rotation="90 0 0" radius="0.075" height="0.04" color="#D84B47"></a-cylinder>
+    <a-cylinder position="0.45 1.48 -0.85" rotation="90 0 0" radius="0.075" height="0.04" color="#A34A91"></a-cylinder>
+  </a-entity>
+
+  <a-entity position="-31 0 -86" rotation="0 90 0">
+    <a-box class="solid" position="0 1.35 0" width="1.45" height="2.70" depth="1.20" color="#A63E3A"></a-box>
+    <a-box position="0 2.58 -0.02" width="1.52" height="0.48" depth="1.25" color="#2E7EA5"></a-box>
+    <a-box position="0 1.92 -0.615" rotation="-8 0 0" width="1.06" height="0.72" depth="0.05" color="#07151D"></a-box>
+    <a-plane position="0 1.92 -0.65" rotation="-8 0 0" width="0.84" height="0.52"
+      material="color:#E35F9C; emissive:#A72F6A; emissiveIntensity:1.2"></a-plane>
+    <a-box position="0 1.34 -0.70" rotation="-12 0 0" width="1.30" height="0.18" depth="0.64" color="#28262C"></a-box>
+    <a-cylinder position="-0.30 1.55 -0.77" radius="0.04" height="0.25" color="#222"></a-cylinder>
+    <a-sphere position="-0.30 1.70 -0.77" radius="0.10" color="#2E7EA5"></a-sphere>
+    <a-cylinder position="0.20 1.48 -0.85" rotation="90 0 0" radius="0.075" height="0.04" color="#E1B42D"></a-cylinder>
+    <a-cylinder position="0.45 1.48 -0.85" rotation="90 0 0" radius="0.075" height="0.04" color="#55A25B"></a-cylinder>
+  </a-entity>
+
+  <!-- MÁQUINA DE PREMIOS -->
+  <a-entity position="30 0 -77" rotation="0 -90 0">
+    <a-box class="solid" position="0 0.55 0" width="1.8" height="1.1" depth="1.45" color="#C8494D"></a-box>
+    <a-box position="0 1.80 0" width="1.75" height="1.45" depth="1.40"
+      material="color:#7BC6D4; opacity:0.28; transparent:true"></a-box>
+    <a-box position="-0.83 1.80 0" width="0.10" height="1.50" depth="1.45" color="#D7D1C3"></a-box>
+    <a-box position="0.83 1.80 0" width="0.10" height="1.50" depth="1.45" color="#D7D1C3"></a-box>
+    <a-box position="0 2.52 0" width="1.85" height="0.14" depth="1.50" color="#D7D1C3"></a-box>
+    <a-sphere position="-0.42 1.42 -0.25" radius="0.20" color="#D6AA2B"></a-sphere>
+    <a-sphere position="0.10 1.38 0.18" radius="0.22" color="#8B4A99"></a-sphere>
+    <a-sphere position="0.43 1.45 -0.20" radius="0.19" color="#4389AD"></a-sphere>
+    <a-sphere position="-0.12 1.48 -0.40" radius="0.18" color="#58A05C"></a-sphere>
+    <a-box position="0 0.88 -0.78" width="1.35" height="0.28" depth="0.18" color="#29272D"></a-box>
+    <a-cylinder position="-0.35 1.05 -0.90" radius="0.045" height="0.24" color="#242424"></a-cylinder>
+    <a-sphere position="-0.35 1.20 -0.90" radius="0.095" color="#E0B32B"></a-sphere>
+  </a-entity>
+
+  <!-- MÁQUINA DE CARRERAS -->
+  <a-entity position="30 0 -84" rotation="0 -90 0">
+    <a-box class="solid" position="0 1.20 0" width="1.8" height="2.4" depth="1.65" color="#2F6685"></a-box>
+    <a-box position="0 1.88 -0.84" rotation="-7 0 0" width="1.30" height="0.82" depth="0.06" color="#09171F"></a-box>
+    <a-plane position="0 1.88 -0.88" rotation="-7 0 0" width="1.10" height="0.64"
+      material="color:#E5A832; emissive:#B36C19; emissiveIntensity:1.1"></a-plane>
+    <a-torus position="0 1.15 -0.91" rotation="90 0 0" radius="0.30" radius-tubular="0.055" color="#202124"></a-torus>
+    <a-cylinder position="0 1.15 -0.90" rotation="90 0 0" radius="0.07" height="0.12" color="#B9413E"></a-cylinder>
+    <a-box position="0 0.30 -0.20" width="1.20" height="0.28" depth="1.00" color="#22262A"></a-box>
+  </a-entity>
+
+  <!-- MESA REDONDA DEL SALÓN POSTERIOR -->
+  <a-entity position="0 0 -102">
+    <a-cylinder class="solid" position="0 1.00 0" radius="2.2" height="0.16" color="#E4E0D4"></a-cylinder>
+    <a-cylinder position="0 0.50 0" radius="0.12" height="1.0" color="#343434"></a-cylinder>
+    <a-cylinder position="0 0.10 0" radius="0.75" height="0.12" color="#343434"></a-cylinder>
+    <a-cylinder position="0 1.10 0" radius="0.35" height="0.035" color="#D4AF26"></a-cylinder>
+    <a-cylinder position="0.75 1.30 0" radius="0.14" height="0.40" color="#367FA4"></a-cylinder>
+    <a-cylinder position="0.75 1.52 0" radius="0.15" height="0.035" color="#E9E5DA"></a-cylinder>
+    <a-cylinder position="0.80 1.77 0" radius="0.016" height="0.55" color="#F0EEE8"></a-cylinder>
+  </a-entity>
+
+  <!-- GLOBOS EXTRA DEL FONDO -->
+  <a-entity position="-20 0 -100" balloon-float>
+    <a-sphere position="-0.8 4.2 0" radius="0.55" scale="0.82 1.15 0.82" color="#C74242"></a-sphere>
+    <a-cylinder position="-0.8 2.5 0" radius="0.008" height="2.8" color="#D4D4C7"></a-cylinder>
+    <a-sphere position="0.2 5.0 0" radius="0.55" scale="0.82 1.15 0.82" color="#D0A92B"></a-sphere>
+    <a-cylinder position="0.2 2.9 0" radius="0.008" height="3.5" color="#D4D4C7"></a-cylinder>
+    <a-sphere position="1.1 4.3 0" radius="0.55" scale="0.82 1.15 0.82" color="#3784AD"></a-sphere>
+  </a-entity>
+
+  <a-entity position="20 0 -100" balloon-float>
+    <a-sphere position="-0.8 4.2 0" radius="0.55" scale="0.82 1.15 0.82" color="#80499C"></a-sphere>
+    <a-cylinder position="-0.8 2.5 0" radius="0.008" height="2.8" color="#D4D4C7"></a-cylinder>
+    <a-sphere position="0.2 5.0 0" radius="0.55" scale="0.82 1.15 0.82" color="#C54A45"></a-sphere>
+    <a-cylinder position="0.2 2.9 0" radius="0.008" height="3.5" color="#D4D4C7"></a-cylinder>
+    <a-sphere position="1.1 4.3 0" radius="0.55" scale="0.82 1.15 0.82" color="#D0A92B"></a-sphere>
+  </a-entity>
+
+
+  
+  <!-- =======================================================
+       AMPLIACIÓN DE LA SEGUNDA HABITACIÓN
+       Zona de juegos más llena y con ambiente más oscuro.
+       NO modifica la primera habitación.
+  ======================================================== -->
+
+  <!-- ILUMINACIÓN MÁS TENUE -->
+  <a-entity position="0 5 -78"
+    light="type:point; color:#5A6A9A; intensity:4; distance:28; decay:2">
+  </a-entity>
+
+  <a-entity position="-15 5 -76"
+    light="type:point; color:#713D83; intensity:5; distance:15; decay:2">
+  </a-entity>
+
+  <a-entity position="15 5 -76"
+    light="type:point; color:#345E73; intensity:5; distance:15; decay:2">
+  </a-entity>
+
+  <!-- ESTRUCTURA ELEVADA DE JUEGOS -->
+  <a-entity position="-14 0 -76">
+    <a-box class="solid" position="0 2.5 0" width="9" height=".35" depth="7"
+      material="color:#383A50; roughness:.85"></a-box>
+
+    <a-cylinder position="-4 1.25 -3" radius=".18" height="2.5" color="#713D69"></a-cylinder>
+    <a-cylinder position="4 1.25 -3" radius=".18" height="2.5" color="#713D69"></a-cylinder>
+    <a-cylinder position="-4 1.25 3" radius=".18" height="2.5" color="#713D69"></a-cylinder>
+    <a-cylinder position="4 1.25 3" radius=".18" height="2.5" color="#713D69"></a-cylinder>
+
+    <a-box position="-4 3.3 0" width=".15" height="1.5" depth="7" color="#242735"></a-box>
+    <a-box position="4 3.3 0" width=".15" height="1.5" depth="7" color="#242735"></a-box>
+    <a-box position="0 4.3 0" width="9" height=".18" depth="7" color="#282936"></a-box>
+
+    <a-box position="-2 2.25 0" width="2" height=".05" depth=".15"
+      material="color:#805B91; emissive:#805B91; emissiveIntensity:1.5"></a-box>
+    <a-box position="2 2.25 0" width="2" height=".05" depth=".15"
+      material="color:#467C8F; emissive:#467C8F; emissiveIntensity:1.5"></a-box>
+  </a-entity>
+
+  <!-- RESBALADILLA AZUL -->
+  <a-entity position="-10 0 -69">
+    <a-box class="solid" position="0 1.45 0" rotation="-27 0 0"
+      width="2.2" height=".22" depth="6.3"
+      material="color:#315D73; roughness:.55"></a-box>
+    <a-box position="-1.05 1.7 0" rotation="-27 0 0"
+      width=".18" height=".65" depth="6.3" color="#263E52"></a-box>
+    <a-box position="1.05 1.7 0" rotation="-27 0 0"
+      width=".18" height=".65" depth="6.3" color="#263E52"></a-box>
+  </a-entity>
+
+  <!-- RESBALADILLA MORADA -->
+  <a-entity position="-16 0 -69">
+    <a-box class="solid" position="0 1.45 0" rotation="-27 0 0"
+      width="1.8" height=".20" depth="6.3" color="#683E65"></a-box>
+    <a-box position="-.85 1.7 0" rotation="-27 0 0"
+      width=".15" height=".55" depth="6.3" color="#3A2D46"></a-box>
+    <a-box position=".85 1.7 0" rotation="-27 0 0"
+      width=".15" height=".55" depth="6.3" color="#3A2D46"></a-box>
+  </a-entity>
+
+  <!-- TÚNEL -->
+  <a-entity position="-20 3 -76">
+    <a-cylinder rotation="0 0 90" radius="1" height="5" open-ended="true"
+      material="color:#41394F; side:double; opacity:.85; transparent:true"></a-cylinder>
+    <a-torus position="-2.5 0 0" rotation="0 90 0" radius="1"
+      radius-tubular=".08" color="#744B7B"></a-torus>
+    <a-torus position="0 0 0" rotation="0 90 0" radius="1"
+      radius-tubular=".08" color="#456E80"></a-torus>
+    <a-torus position="2.5 0 0" rotation="0 90 0" radius="1"
+      radius-tubular=".08" color="#744B7B"></a-torus>
+  </a-entity>
+
+  <!-- PISCINA DE PELOTAS -->
+  <a-entity position="-14 0 -88">
+    <a-box class="solid" position="-4 1 0" width=".35" height="2" depth="8" color="#252C38"></a-box>
+    <a-box class="solid" position="4 1 0" width=".35" height="2" depth="8" color="#252C38"></a-box>
+    <a-box class="solid" position="0 1 -4" width="8" height="2" depth=".35" color="#252C38"></a-box>
+
+    <a-sphere class="pickup-ball" position="-2.8 .45 -2" radius=".35" color="#70466F"></a-sphere>
+    <a-sphere class="pickup-ball" position="-2 .45 -2.4" radius=".35" color="#315F78"></a-sphere>
+    <a-sphere class="pickup-ball" position="-1.2 .45 -2" radius=".35" color="#9C7734"></a-sphere>
+    <a-sphere class="pickup-ball" position="-.3 .45 -2.5" radius=".35" color="#465F48"></a-sphere>
+    <a-sphere class="pickup-ball" position=".7 .45 -2" radius=".35" color="#843E43"></a-sphere>
+    <a-sphere class="pickup-ball" position="1.6 .45 -2.5" radius=".35" color="#55477B"></a-sphere>
+    <a-sphere class="pickup-ball" position="2.6 .45 -2" radius=".35" color="#315F78"></a-sphere>
+
+    <a-sphere class="pickup-ball" position="-2.5 .45 -1" radius=".35" color="#843E43"></a-sphere>
+    <a-sphere class="pickup-ball" position="-1.6 .45 -.8" radius=".35" color="#55477B"></a-sphere>
+    <a-sphere class="pickup-ball" position="-.7 .45 -1.2" radius=".35" color="#9C7734"></a-sphere>
+    <a-sphere class="pickup-ball" position=".3 .45 -.8" radius=".35" color="#315F78"></a-sphere>
+    <a-sphere class="pickup-ball" position="1.3 .45 -1.2" radius=".35" color="#70466F"></a-sphere>
+    <a-sphere class="pickup-ball" position="2.3 .45 -.8" radius=".35" color="#465F48"></a-sphere>
+
+    <a-sphere class="pickup-ball" position="-2.8 .45 .3" radius=".35" color="#315F78"></a-sphere>
+    <a-sphere class="pickup-ball" position="-1.8 .45 .6" radius=".35" color="#9C7734"></a-sphere>
+    <a-sphere class="pickup-ball" position="-.8 .45 .2" radius=".35" color="#70466F"></a-sphere>
+    <a-sphere class="pickup-ball" position=".2 .45 .6" radius=".35" color="#843E43"></a-sphere>
+    <a-sphere class="pickup-ball" position="1.2 .45 .2" radius=".35" color="#55477B"></a-sphere>
+    <a-sphere class="pickup-ball" position="2.4 .45 .5" radius=".35" color="#315F78"></a-sphere>
+  </a-entity>
+
+  <!-- MESAS EXTRA -->
+  <a-entity position="14 0 -75">
+    <a-box class="solid" position="0 1 0" width="5" height=".18" depth="3" color="#BEB9AD"></a-box>
+    <a-cylinder position="-2 .5 -1" radius=".07" height="1" color="#27292C"></a-cylinder>
+    <a-cylinder position="2 .5 -1" radius=".07" height="1" color="#27292C"></a-cylinder>
+    <a-cylinder position="-2 .5 1" radius=".07" height="1" color="#27292C"></a-cylinder>
+    <a-cylinder position="2 .5 1" radius=".07" height="1" color="#27292C"></a-cylinder>
+
+    <a-box class="solid" position="0 .55 -2" width="4.6" height=".18" depth=".65" color="#665A55"></a-box>
+    <a-box class="solid" position="0 .55 2" width="4.6" height=".18" depth=".65" color="#665A55"></a-box>
+
+    <a-cylinder position="-1.4 1.13 0" radius=".30" height=".025" color="#70466F"></a-cylinder>
+    <a-cylinder position="0 1.13 0" radius=".30" height=".025" color="#315F78"></a-cylinder>
+    <a-cylinder position="1.4 1.13 0" radius=".30" height=".025" color="#9C7734"></a-cylinder>
+  </a-entity>
+
+  <a-entity position="14 0 -84">
+    <a-box class="solid" position="0 1 0" width="5" height=".18" depth="3" color="#BEB9AD"></a-box>
+    <a-cylinder position="-2 .5 -1" radius=".07" height="1" color="#27292C"></a-cylinder>
+    <a-cylinder position="2 .5 -1" radius=".07" height="1" color="#27292C"></a-cylinder>
+    <a-cylinder position="-2 .5 1" radius=".07" height="1" color="#27292C"></a-cylinder>
+    <a-cylinder position="2 .5 1" radius=".07" height="1" color="#27292C"></a-cylinder>
+
+    <a-box class="solid" position="0 .55 -2" width="4.6" height=".18" depth=".65" color="#665A55"></a-box>
+    <a-box class="solid" position="0 .55 2" width="4.6" height=".18" depth=".65" color="#665A55"></a-box>
+
+    <a-cylinder position="-1.4 1.13 0" radius=".30" height=".025" color="#843E43"></a-cylinder>
+    <a-cylinder position="0 1.13 0" radius=".30" height=".025" color="#55477B"></a-cylinder>
+    <a-cylinder position="1.4 1.13 0" radius=".30" height=".025" color="#315F78"></a-cylinder>
+  </a-entity>
+
+  <!-- REGALOS EXTRA -->
+  <a-entity position="20 0 -89">
+    <a-box position="0 .65 0" width="1.3" height="1.3" depth="1.3" color="#663D65"></a-box>
+    <a-box position="0 .65 0" width=".16" height="1.35" depth="1.35" color="#B59432"></a-box>
+
+    <a-box position="1.5 .45 .2" width=".9" height=".9" depth=".9" color="#315E78"></a-box>
+    <a-box position="1.5 .45 .2" width=".12" height=".95" depth=".95" color="#A64A4E"></a-box>
+
+    <a-box position="-1.5 .85 .1" width="1.1" height="1.7" depth="1.1" color="#875D32"></a-box>
+    <a-box position="-1.5 .85 .1" width=".13" height="1.75" depth="1.15" color="#315E78"></a-box>
+
+    <a-box position="2.7 .7 -.2" width="1.1" height="1.4" depth="1.1" color="#465F48"></a-box>
+    <a-box position="2.7 .7 -.2" width=".14" height="1.45" depth="1.15" color="#70466F"></a-box>
+  </a-entity>
+
+  <!-- GRUPOS DE GLOBOS OSCUROS -->
+  <a-entity position="21 0 -72" balloon-float>
+    <a-sphere position="-1 4 0" radius=".6" scale=".82 1.15 .82" color="#683F69"></a-sphere>
+    <a-cylinder position="-1 2.5 0" radius=".008" height="2.7" color="#777"></a-cylinder>
+    <a-sphere position="0 5 0" radius=".6" scale=".82 1.15 .82" color="#315D75"></a-sphere>
+    <a-cylinder position="0 2.9 0" radius=".008" height="3.5" color="#777"></a-cylinder>
+    <a-sphere position="1 4.2 0" radius=".6" scale=".82 1.15 .82" color="#854348"></a-sphere>
+  </a-entity>
+
+  <a-entity position="21 0 -93" balloon-float>
+    <a-sphere position="-1 4 0" radius=".6" scale=".82 1.15 .82" color="#344F62"></a-sphere>
+    <a-cylinder position="-1 2.5 0" radius=".008" height="2.7" color="#777"></a-cylinder>
+    <a-sphere position="0 5 0" radius=".6" scale=".82 1.15 .82" color="#624267"></a-sphere>
+    <a-cylinder position="0 2.9 0" radius=".008" height="3.5" color="#777"></a-cylinder>
+    <a-sphere position="1 4.3 0" radius=".6" scale=".82 1.15 .82" color="#806632"></a-sphere>
+  </a-entity>
+
+  <!-- LUCES TENUES DEL TECHO -->
+  <a-box position="-14 6.82 -78" width="5" height=".07" depth=".8"
+    material="color:#596D86; emissive:#394D6A; emissiveIntensity:.7"></a-box>
+  <a-box position="14 6.82 -78" width="5" height=".07" depth=".8"
+    material="color:#725376; emissive:#54365D; emissiveIntensity:.7"></a-box>
+  <a-box position="0 6.82 -91" width="5" height=".07" depth=".8"
+    material="color:#48596B; emissive:#334454; emissiveIntensity:.5"></a-box>
+
+
+  
+  
+  <!-- PELOTAS INTERACTIVAS EXTRA: acércate y usa E -->
+  <a-sphere class="pickup-ball" position="-11.5 .35 -85" radius=".35" color="#70466F"></a-sphere>
+  <a-sphere class="pickup-ball" position="-10.5 .35 -86" radius=".35" color="#315F78"></a-sphere>
+  <a-sphere class="pickup-ball" position="-9.5 .35 -85.2" radius=".35" color="#9C7734"></a-sphere>
+  <a-sphere class="pickup-ball" position="-8.7 .35 -86.3" radius=".35" color="#843E43"></a-sphere>
+
+<!-- =======================================================
+       CRIATURAS DE LA SEGUNDA HABITACIÓN
+       Inspiradas en la referencia amarilla con globo.
+       Hechas únicamente con primitivas de A-Frame.
+  ======================================================== -->
+
+  <!-- MONSTRUO 1: criatura amarilla con globo rojo -->
+  <a-entity position="22 0 -79" rotation="0 -35 0" monster-react="distance:22; speed:.85; mode:follow; faceBack:true; exitX:13; exitZ:-74" remember-enemy-spawn enemy-danger="killDistance:1.35" remember-enemy-spawn monster-cube-drop>
+
+    <!-- cuerpo / túnica -->
+    <a-cone class="solid"
+      position="0 1.35 0"
+      radius-bottom="0.85"
+      radius-top="0.48"
+      height="2.7"
+      material="color:#B49B35; roughness:1">
+    </a-cone>
+
+    <!-- manchas oscuras -->
+    <a-sphere position="-0.48 1.05 -0.55" radius=".22"
+      scale="1.4 .65 .18" color="#74462E"></a-sphere>
+    <a-sphere position=".36 1.75 -0.43" radius=".18"
+      scale="1.2 .6 .18" color="#80503A"></a-sphere>
+
+    <!-- cabeza -->
+    <a-box
+      position="0 3.05 0"
+      width="1.05"
+      height="1.15"
+      depth=".85"
+      material="color:#B9A13B; roughness:1">
+    </a-box>
+
+    <!-- parte superior ligeramente redondeada -->
+    <a-sphere position="0 3.52 0" radius=".51"
+      scale="1 .42 .82" color="#B9A13B"></a-sphere>
+
+    <!-- ojos oscuros -->
+    <a-sphere position="-.25 3.18 -.43"
+      radius=".11"
+      scale=".75 1.35 .35"
+      material="color:#321D18; emissive:#1B0907; emissiveIntensity:.35">
+    </a-sphere>
+
+    <a-sphere position=".25 3.18 -.43"
+      radius=".11"
+      scale=".75 1.35 .35"
+      material="color:#321D18; emissive:#1B0907; emissiveIntensity:.35">
+    </a-sphere>
+
+    <!-- sonrisa -->
+    <a-torus
+      position="0 2.90 -.44"
+      rotation="0 0 180"
+      radius=".26"
+      radius-tubular=".055"
+      arc="180"
+      material="color:#6E211E; emissive:#3A0908; emissiveIntensity:.35">
+    </a-torus>
+
+    <!-- brazos largos -->
+    <a-cylinder
+      position="-.76 1.85 0"
+      rotation="0 0 -18"
+      radius=".17"
+      height="2.25"
+      color="#B09A3C">
+    </a-cylinder>
+
+    <a-cylinder
+      position=".76 1.85 0"
+      rotation="0 0 18"
+      radius=".17"
+      height="2.25"
+      color="#B09A3C">
+    </a-cylinder>
+
+    <!-- manos -->
+    <a-sphere position="-1.08 .82 0" radius=".20" color="#A68D34"></a-sphere>
+    <a-sphere position="1.08 .82 0" radius=".20" color="#A68D34"></a-sphere>
+
+    <!-- cuerda del globo -->
+    <a-cylinder
+      position="-1.35 2.35 0"
+      radius=".012"
+      height="3.1"
+      color="#B7B7AD">
+    </a-cylinder>
+
+    <!-- globo rojo -->
+    <a-sphere
+      position="-1.35 4.35 0"
+      radius=".66"
+      scale=".82 1.15 .82"
+      material="color:#8E2925; roughness:.35"
+      animation="property: position; dir:alternate; dur:2200; easing:easeInOutSine; loop:true; to:-1.35 4.52 0">
+    </a-sphere>
+
+    <a-cone
+      position="-1.35 3.62 0"
+      radius-bottom=".09"
+      radius-top="0"
+      height=".18"
+      rotation="180 0 0"
+      color="#76221F">
+    </a-cone>
+
+    <!-- movimiento lento de toda la criatura -->
+    <a-animation
+      attribute="rotation"
+      dur="5200"
+      direction="alternate"
+      repeat="indefinite"
+      to="0 -30 1">
+    </a-animation>
+  </a-entity>
+
+
+  <!-- MONSTRUO 2: criatura asomándose desde el túnel -->
+  <a-entity position="-22.35 3 -76" rotation="0 90 0" monster-react="distance:7; speed:0; mode:look; faceBack:true" remember-enemy-spawn enemy-danger="killDistance:1.05" remember-enemy-spawn>
+
+    <a-sphere position="0 0 0" radius=".58"
+      scale="1 .9 .75"
+      material="color:#514A39; roughness:1">
+    </a-sphere>
+
+    <a-sphere position="-.21 .10 -.47" radius=".075"
+      material="color:#D0B649; emissive:#B29325; emissiveIntensity:1.8">
+    </a-sphere>
+
+    <a-sphere position=".21 .10 -.47" radius=".075"
+      material="color:#D0B649; emissive:#B29325; emissiveIntensity:1.8">
+    </a-sphere>
+
+    <a-torus position="0 -.18 -.48"
+      rotation="0 0 180"
+      radius=".19"
+      radius-tubular=".035"
+      arc="180"
+      color="#211B18">
+    </a-torus>
+
+    <a-cylinder position="-.55 -.45 .15"
+      rotation="0 0 -55"
+      radius=".10"
+      height="1.4"
+      color="#4B4436">
+    </a-cylinder>
+
+    <a-cylinder position=".55 -.45 .15"
+      rotation="0 0 55"
+      radius=".10"
+      height="1.4"
+      color="#4B4436">
+    </a-cylinder>
+
+    <a-animation
+      attribute="position"
+      dur="3600"
+      direction="alternate"
+      repeat="indefinite"
+      easing="easeInOutSine"
+      to="-22.05 3 -76">
+    </a-animation>
+  </a-entity>
+
+
+  <!-- MONSTRUO 3: figura alta detrás de la piscina de pelotas -->
+  <a-entity position="-14 0 -93" rotation="0 8 0" monster-react="distance:10; speed:.72; mode:follow; faceBack:true" remember-enemy-spawn enemy-danger="killDistance:1.35" remember-enemy-spawn>
+
+    <a-cone class="solid"
+      position="0 1.75 0"
+      radius-bottom=".65"
+      radius-top=".34"
+      height="3.5"
+      color="#343746">
+    </a-cone>
+
+    <a-sphere position="0 3.75 0"
+      radius=".48"
+      scale=".85 1.2 .8"
+      color="#383A49">
+    </a-sphere>
+
+    <!-- brazos -->
+    <a-cylinder position="-.65 2.0 0"
+      rotation="0 0 -12"
+      radius=".11"
+      height="2.8"
+      color="#343746">
+    </a-cylinder>
+
+    <a-cylinder position=".65 2.0 0"
+      rotation="0 0 12"
+      radius=".11"
+      height="2.8"
+      color="#343746">
+    </a-cylinder>
+
+    <!-- ojos -->
+    <a-sphere position="-.17 3.86 -.40"
+      radius=".065"
+      material="color:#9FC6D2; emissive:#79B8CC; emissiveIntensity:2.2">
+    </a-sphere>
+
+    <a-sphere position=".17 3.86 -.40"
+      radius=".065"
+      material="color:#9FC6D2; emissive:#79B8CC; emissiveIntensity:2.2">
+    </a-sphere>
+
+    <!-- animación apenas visible -->
+    <a-animation
+      attribute="rotation"
+      dur="6500"
+      direction="alternate"
+      repeat="indefinite"
+      easing="easeInOutSine"
+      to="0 -5 -2">
+    </a-animation>
+  </a-entity>
+
+
+  <!-- MONSTRUO 4: ojos escondidos al fondo -->
+  <a-entity position="7 3.4 -109">
+
+    <a-sphere position="-.22 0 0"
+      radius=".07"
+      material="color:#B54845; emissive:#B54845; emissiveIntensity:2.6"
+      animation="property: material.opacity; dir:alternate; dur:1800; loop:true; from:.2; to:1">
+    </a-sphere>
+
+    <a-sphere position=".22 0 0"
+      radius=".07"
+      material="color:#B54845; emissive:#B54845; emissiveIntensity:2.6"
+      animation="property: material.opacity; dir:alternate; dur:1800; loop:true; from:.2; to:1">
+    </a-sphere>
+
+  </a-entity>
+
+
+  
+  <!-- =======================================================
+
+
+
+  
+  <!-- PARED Y PUERTA REAL HACIA LABERINTO / PARKOUR -->
+  <a-entity id="puerta-real-laberinto" position="0 0 -115">
+    <!-- DOS ENTRADAS REALES: LABERINTO Y PARKOUR -->
+
+    <!-- muro extremo izquierdo -->
+    <a-box class="solid" position="-34.5 3.5 0"
+      width="11" height="7" depth=".55" color="#542F45"></a-box>
+
+    <!-- muro entre puerta del laberinto y puerta del parkour -->
+    <a-box class="solid" position="-2.45 3.5 0"
+      width="20.7" height="7" depth=".55" color="#542F45"></a-box>
+
+    <!-- muro extremo derecho -->
+    <a-box class="solid" position="29.15 3.5 0"
+      width="21.7" height="7" depth=".55" color="#542F45"></a-box>
+
+    <!-- dintel LABERINTO: hueco x=-29 a -15 -->
+    <a-box class="solid" position="-22 5.8 0"
+      width="14" height="2.4" depth=".55" color="#542F45"></a-box>
+
+    <!-- dintel PARKOUR: hueco x=7.9 a 18.1 -->
+    <a-box class="solid" position="13 5.8 0"
+      width="10.4" height="2.4" depth=".55" color="#542F45"></a-box>
+
+    <!-- marco laberinto, sólo visual -->
+    <a-box position="-29.1 2.3 -.08" width=".30" height="4.6" depth=".72" color="#15191D"></a-box>
+    <a-box position="-14.9 2.3 -.08" width=".30" height="4.6" depth=".72" color="#15191D"></a-box>
+    <a-box position="-22 4.58 -.08" width="14.5" height=".30" depth=".72" color="#15191D"></a-box>
+
+    <!-- marco parkour, sólo visual -->
+    <a-box position="7.75 2.3 -.08" width=".30" height="4.6" depth=".72" color="#15191D"></a-box>
+    <a-box position="18.25 2.3 -.08" width=".30" height="4.6" depth=".72" color="#15191D"></a-box>
+    <a-box position="13 4.58 -.08" width="10.8" height=".30" depth=".72" color="#15191D"></a-box>
+
+    <a-light type="point" position="-22 4 -116" intensity=".65" distance="8" color="#6FA7B5"></a-light>
+    <a-light type="point" position="13 4 -116" intensity=".65" distance="8" color="#B58AA8"></a-light>
+  </a-entity>
+
+
+  NUEVA ALA: LABERINTO + PARKOUR
+       Empieza después del gran salón existente.
+  ======================================================== -->
+
+  <!-- piso y techo de la ampliación -->
+  <a-box position="-20 -0.035 -140" width="40" height=".07" depth="50"
+    material="color:#242631; roughness:.95"></a-box>
+  <a-box position="4 -0.035 -140" width="8" height=".07" depth="50"
+    material="color:#292B31; roughness:.95"></a-box>
+  <a-box position="0 7 -140" width="80" height=".25" depth="50"
+    material="color:#777982; roughness:.95"></a-box>
+
+  <!-- paredes exteriores de la ampliación -->
+  <a-box class="solid" position="-40 3.5 -140" width=".5" height="7" depth="50" color="#342E46"></a-box>
+  <a-box class="solid" position="40 3.5 -140" width=".5" height="7" depth="50" color="#31434D"></a-box>
+  <!-- muro trasero: laberinto cerrado; salida de parkour en x=29 -->
+  <a-box class="solid" position="-25 3.5 -165" width="30" height="7" depth=".5" color="#3E3347"></a-box>
+  <a-box class="solid" position="7.5 3.5 -165" width="35" height="7" depth=".5" color="#3E3347"></a-box>
+  <a-box class="solid" position="36.5 3.5 -165" width="7" height="7" depth=".5" color="#3E3347"></a-box>
+  <a-box class="solid" position="29 5.8 -165" width="8" height="2.4" depth=".5" color="#3E3347"></a-box>
+
+  <!-- marco de salida al terminar el parkour -->
+  <a-box position="24.9 2.3 -164.92" width=".30" height="4.6" depth=".7" color="#15191D"></a-box>
+  <a-box position="33.1 2.3 -164.92" width=".30" height="4.6" depth=".7" color="#15191D"></a-box>
+  <a-box position="29 4.58 -164.92" width="8.5" height=".30" depth=".7" color="#15191D"></a-box>
+
+  <!-- paso desde el gran salón -->
+  
+  
+  
+
+  <!-- =======================================================
+       LABERINTO IZQUIERDO
+  ======================================================== -->
+  <a-entity id="maze-area">
+    <!-- LABERINTO REHECHO: pasillos conectados y sin paredes cruzando la ruta -->
+
+    <!-- límite izquierdo -->
+    <a-box class="solid" position="-39.5 2 -140" width=".5" height="4" depth="49" color="#413747"></a-box>
+    <!-- límite derecho del laberinto -->
+    <a-box class="solid" position="-.5 2 -140" width=".5" height="4" depth="49" color="#35414B"></a-box>
+
+    <!-- Filas horizontales alternadas: cada una deja un hueco real -->
+    <!-- fila 1: hueco a la derecha -->
+    <a-box class="solid" position="-25.5 2 -124" width="27" height="4" depth=".55" color="#4A3D50"></a-box>
+
+    <!-- fila 2: hueco a la izquierda -->
+    <a-box class="solid" position="-14.5 2 -132" width="27" height="4" depth=".55" color="#3C4652"></a-box>
+
+    <!-- fila 3: hueco a la derecha -->
+    <a-box class="solid" position="-25.5 2 -140" width="27" height="4" depth=".55" color="#4A3D50"></a-box>
+
+    <!-- fila 4: hueco a la izquierda -->
+    <a-box class="solid" position="-14.5 2 -148" width="27" height="4" depth=".55" color="#3C4652"></a-box>
+
+    <!-- fila 5: hueco a la derecha -->
+    <a-box class="solid" position="-25.5 2 -156" width="27" height="4" depth=".55" color="#4A3D50"></a-box>
+
+    <!-- pasillo del laberinto despejado: se retiraron los muros que sobresalían -->
+
+    <!-- cubitos coleccionables en puntos accesibles -->
+    <a-box class="letter-cube" data-letter="F" position="-7 1 -127" width=".8" height=".8" depth=".8"
+      material="color:#B24B50; emissive:#542124; emissiveIntensity:.45"></a-box>
+    <a-text value="F" position="-7.22 1.08 -126.58" width="2.1" color="#F3EAD8"></a-text>
+
+    <a-box class="letter-cube" data-letter="U" position="-34 1 -135" width=".8" height=".8" depth=".8"
+      material="color:#B08A35; emissive:#4C3B17; emissiveIntensity:.45"></a-box>
+
+  <!-- RECOMPENSA AL FINAL DEL PARKOUR: regalo + gorrito -->
+  <a-entity id="parkour-gift" party-hat-reward position="29.00 1.47 -163.00">
+    <!-- caja de regalo -->
+    <a-box width=".9" height=".65" depth=".9" color="#A84D68"></a-box>
+    <a-box position="0 .38 0" width="1" height=".16" depth="1" color="#E6C75A"></a-box>
+    <a-box position="0 0 .01" width=".15" height=".68" depth=".94" color="#E6C75A"></a-box>
+    <a-box position="0 0 .01" width=".94" height=".68" depth=".15" color="#E6C75A"></a-box>
+
+    <!-- gorrito encima del regalo -->
+    <a-cone position="0 1.02 0" radius-bottom=".34" radius-top=".035"
+      height=".75" color="#E85D75"></a-cone>
+    <a-sphere position="0 1.43 0" radius=".085" color="#F5D35D"></a-sphere>
+    <a-torus position="0 .64 0" rotation="90 0 0"
+      radius=".34" radius-tubular=".035" color="#62B7C8"></a-torus>
+
+    <a-light type="point" position="0 1.5 0" intensity="1.15"
+      distance="6" color="#F6D978"></a-light>
+  </a-entity>
+
+    <a-text value="U" position="-34.22 1.08 -134.58" width="2.1" color="#F3EAD8"></a-text>
+
+    <a-box class="letter-cube" data-letter="N" position="-7 1 -151" width=".8" height=".8" depth=".8"
+      material="color:#3F7B91; emissive:#1D3A45; emissiveIntensity:.45"></a-box>
+    <a-text value="N" position="-7.22 1.08 -150.58" width="2.1" color="#F3EAD8"></a-text>
+  </a-entity>
+
+  <!-- =======================================================
+       PARKOUR DERECHO
+  ======================================================== -->
+  <a-entity id="parkour-area">
+    <!-- PARKOUR SOBRE VACÍO REAL -->
+    
+  <!-- PARKOUR OCULTO: paredes apoyadas en el suelo + puerta de entrada -->
+  <a-entity id="paredes-parkour-oculto">
+    <!-- laterales que esconden el parkour; SIN segunda pared frontal -->
+    <a-box class="solid" position="5.80 3.5 -140"
+      width=".55" height="7" depth="50" color="#252C32"></a-box>
+    <a-box class="solid" position="37.00 3.5 -140"
+      width=".55" height="7" depth="50" color="#342B36"></a-box>
+  </a-entity>
+
+  <a-box class="solid parkour-platform" position="13 .12 -120" width="7" height=".24" depth="5" color="#566B73"></a-box>
+    <a-box class="solid parkour-platform" position="16 .12 -127" width="5" height=".24" depth="4.5" color="#5D4967"></a-box>
+    <a-box class="solid parkour-platform" position="22 .12 -133" width="5" height=".24" depth="4.5" color="#465D68"></a-box>
+    <a-box class="solid parkour-platform" position="28 .12 -139" width="5" height=".24" depth="4.5" color="#71583E"></a-box>
+    <a-box class="solid parkour-platform" position="23 .12 -145" width="4.5" height=".24" depth="4.5" color="#50576E"></a-box>
+    <a-box class="solid parkour-platform" position="17 .12 -151" width="4.5" height=".24" depth="4.5" color="#624A65"></a-box>
+    <a-box class="solid parkour-platform" position="23 .12 -157" width="5" height=".24" depth="4.5" color="#45636B"></a-box>
+    <a-box class="solid parkour-platform" position="29 .12 -162" width="8" height=".24" depth="5" color="#756044"></a-box>
+
+    <!-- fondo visual lejano -->
+    <a-box position="24 -18 -141" width="31" height=".2" depth="49" color="#010102"></a-box>
+  </a-entity>
+
+
+  
+  <!-- =======================================================
+       COMIDA ESCONDIDA / COMESTIBLE
+       Más pequeña y apoyada directamente sobre el suelo.
+       Acércate y presiona Q.
+  ======================================================== -->
+
+
+
+
+
+  <!-- PASTEL 1 -->
+  <a-entity edible-food="kind:pastel" position="25 0 -58">
+    <a-box position="0 .15 0" width=".48" height=".30" depth=".48" color="#C98398"></a-box>
+    <a-box position="0 .315 0" width=".50" height=".045" depth=".50" color="#E8D9BA"></a-box>
+    <a-sphere position="0 .39 0" radius=".065" color="#9D3B42"></a-sphere>
+  </a-entity>
+
+  <!-- PASTEL 3 -->
+  <a-entity edible-food="kind:pastel" position="5 0 -88">
+    <a-box position="0 .15 0" width=".48" height=".30" depth=".48" color="#D68DA5"></a-box>
+    <a-box position="0 .315 0" width=".50" height=".045" depth=".50" color="#EFE0BE"></a-box>
+    <a-sphere position="0 .39 0" radius=".065" color="#A43D46"></a-sphere>
+  </a-entity>
+
+
+  
+  
+
+
+  
+  <!-- =======================================================
+       ALA NUEVA ACCESIBLE
+       Se entra directamente desde el fondo de la zona de
+       laberinto/parkour. Las puertas tienen marcos de colores.
+  ======================================================== -->
+
+  <!-- CONEXIÓN EXCLUSIVA DESDE EL FINAL DEL PARKOUR -->
+  <!-- tramo recto después de la puerta final -->
+  <a-box position="29 -.035 -169" width="8" height=".07" depth="8" color="#34343A"></a-box>
+  <a-box position="29 7 -169" width="8" height=".25" depth="8" color="#55534E"></a-box>
+  <a-box class="solid" position="24.8 3.5 -169" width=".4" height="7" depth="8" color="#31515C"></a-box>
+  <a-box class="solid" position="33.2 3.5 -169" width=".4" height="7" depth="8" color="#60404B"></a-box>
+
+  <!-- pasillo horizontal que lleva al corredor central de la zona nueva -->
+  <a-box position="14.5 -.035 -173" width="37" height=".07" depth="8" color="#34343A"></a-box>
+  <a-box position="14.5 7 -173" width="37" height=".25" depth="8" color="#55534E"></a-box>
+  <a-box class="solid" position="14.5 3.5 -169.2" width="20.6" height="7" depth=".4" color="#31515C"></a-box>
+  <a-box class="solid" position="14.5 3.5 -176.8" width="37" height="7" depth=".4" color="#60404B"></a-box>
+
+  <!-- CORREDOR DE CONEXIÓN: z -165 a -185 -->
+  
+  <a-box position="0 7 -175" width="18" height=".3" depth="22" color="#55534E"></a-box>
+  <a-box class="solid" position="-9 3.5 -175" width=".4" height="7" depth="22" color="#31515C"></a-box>
+  <a-box class="solid" position="9 3.5 -175" width=".4" height="7" depth="22" color="#60404B"></a-box>
+
+  <!-- luces para que el corredor sea reconocible -->
+  <a-light class="blackout-light" type="point" position="0 5.6 -170" intensity="1.4" distance="20" color="#F1E8CC"></a-light>
+  <a-light class="blackout-light" type="point" position="0 5.6 -181" intensity="1.4" distance="20" color="#F1E8CC"></a-light>
+
+  
+  <!-- CAMINO DIRECTO A TODAS LAS HABITACIONES -->
+  
+  <a-box position="0 6.95 -184" width="12" height=".12" depth="42" color="#4C4B48"></a-box>
+  <a-box class="solid" position="-6 3.5 -184" width=".25" height="7" depth="42" color="#35515A"></a-box>
+  <a-box class="solid" position="6 3.5 -184" width=".25" height="7" depth="42" color="#5A3E49"></a-box>
+  <a-light class="blackout-light" type="point" position="0 5.3 -170" intensity="1.5" distance="16" color="#E8D898"></a-light>
+  <a-light class="blackout-light" type="point" position="0 5.3 -184" intensity="1.5" distance="16" color="#E8D898"></a-light>
+  <a-light class="blackout-light" type="point" position="0 5.3 -198" intensity="1.5" distance="16" color="#E8D898"></a-light>
+
+
+  <!-- SALA DISTRIBUIDORA -->
+  
+  <a-box position="0 7 -194" width="70" height=".3" depth="18" color="#55534E"></a-box>
+  <!-- pared trasera de distribuidor CON abertura central -->
+  <a-box class="solid" position="-22 3.5 -203" width="26" height="7" depth=".4" color="#473A46"></a-box>
+  <a-box class="solid" position="22 3.5 -203" width="26" height="7" depth=".4" color="#473A46"></a-box>
+  <a-box class="solid" position="0 5.8 -203" width="18" height="2.4" depth=".4" color="#473A46"></a-box>
+
+  <!-- pared frontal con abertura central real -->
+  <a-box class="solid" position="-22 3.5 -185" width="26" height="7" depth=".4" color="#4D3947"></a-box>
+  <a-box class="solid" position="22 3.5 -185" width="26" height="7" depth=".4" color="#4D3947"></a-box>
+  <a-box class="solid" position="0 5.8 -185" width="18" height="2.4" depth=".4" color="#4D3947"></a-box>
+
+  <!-- ===== HABITACIÓN 1: MANTENIMIENTO, izquierda ===== -->
+  <a-entity id="maintenance-room" position="-25 0 -220">
+    
+    <a-box position="0 7 0" width="28" height=".3" depth="30" color="#4B504B"></a-box>
+    <a-box class="solid" position="-14 3.5 0" width=".4" height="7" depth="30" color="#35453F"></a-box>
+    <a-box class="solid" position="14 3.5 0" width=".4" height="7" depth="30" color="#35453F"></a-box>
+    <a-box class="solid" position="0 3.5 -15" width="28" height="7" depth=".4" color="#35453F"></a-box>
+
+    <!-- pared de entrada dejando puerta -->
+    <a-box class="solid" position="-8.5 3.5 15" width="11" height="7" depth=".4" color="#35453F"></a-box>
+    <a-box class="solid" position="8.5 3.5 15" width="11" height="7" depth=".4" color="#35453F"></a-box>
+    <a-box class="solid" position="0 5.8 15" width="6" height="2.4" depth=".4" color="#35453F"></a-box>
+    <a-box position="-3.1 2.3 14.9" width=".22" height="4.6" depth=".6" color="#D1A53B"></a-box>
+    <a-box position="3.1 2.3 14.9" width=".22" height="4.6" depth=".6" color="#D1A53B"></a-box>
+    <a-box position="0 4.55 14.9" width="6.4" height=".22" depth=".6" color="#D1A53B"></a-box>
+
+    <!-- maquinaria y tuberías -->
+    <a-box position="-8 1 -6" width="4" height="2" depth="2" color="#5A625D"></a-box>
+    <a-box position="7 1 -8" width="5" height="2" depth="2" color="#525B57"></a-box>
+    <a-cylinder position="-10 5 -3" radius=".15" height="20" rotation="90 0 0" color="#80776B"></a-cylinder>
+    <a-cylinder position="10 4 2" radius=".18" height="17" rotation="90 0 0" color="#716A62"></a-cylinder>
+
+    <a-box power-switch="id:A" position="-10 1.5 -11" width=".7" height="1.2" depth=".35" color="#8B4747"></a-box>
+    <a-box power-switch="id:B" position="0 1.5 -2" width=".7" height="1.2" depth=".35" color="#8B4747"></a-box>
+    <a-box power-switch="id:C" position="10 1.5 -11" width=".7" height="1.2" depth=".35" color="#8B4747"></a-box>
+    <a-light class="blackout-light" type="point" position="0 5 0" intensity="1.3" distance="25" color="#DDE4CF"></a-light>
+  </a-entity>
+
+  <!-- ===== HABITACIÓN 2: BOTONES, derecha ===== -->
+  <a-entity id="button-room" position="25 0 -220">
+    
+    <a-box position="0 7 0" width="28" height=".3" depth="30" color="#4B4650"></a-box>
+    <a-box class="solid" position="-14 3.5 0" width=".4" height="7" depth="30" color="#493A50"></a-box>
+    <a-box class="solid" position="14 3.5 0" width=".4" height="7" depth="30" color="#493A50"></a-box>
+    <a-box class="solid" position="0 3.5 -15" width="28" height="7" depth=".4" color="#493A50"></a-box>
+
+    <a-box class="solid" position="-8.5 3.5 15" width="11" height="7" depth=".4" color="#493A50"></a-box>
+    <a-box class="solid" position="8.5 3.5 15" width="11" height="7" depth=".4" color="#493A50"></a-box>
+    <a-box class="solid" position="0 5.8 15" width="6" height="2.4" depth=".4" color="#493A50"></a-box>
+    <a-box position="-3.1 2.3 14.9" width=".22" height="4.6" depth=".6" color="#A96373"></a-box>
+    <a-box position="3.1 2.3 14.9" width=".22" height="4.6" depth=".6" color="#A96373"></a-box>
+    <a-box position="0 4.55 14.9" width="6.4" height=".22" depth=".6" color="#A96373"></a-box>
+
+    <a-cylinder sequence-button="n:1" position="-9 1 -7" rotation="90 0 0" radius=".55" height=".25"
+      material="color:#8A3B43; emissive:#3A1519; emissiveIntensity:.35"></a-cylinder>
+    <a-cylinder sequence-button="n:2" position="8 1 -4" rotation="90 0 0" radius=".55" height=".25"
+      material="color:#8A3B43; emissive:#3A1519; emissiveIntensity:.35"></a-cylinder>
+    <a-cylinder sequence-button="n:3" position="-5 1 5" rotation="90 0 0" radius=".55" height=".25"
+      material="color:#8A3B43; emissive:#3A1519; emissiveIntensity:.35"></a-cylinder>
+    <a-cylinder sequence-button="n:4" position="9 1 8" rotation="90 0 0" radius=".55" height=".25"
+      material="color:#8A3B43; emissive:#3A1519; emissiveIntensity:.35"></a-cylinder>
+
+    <a-box id="puzzle-gate" class="solid" position="0 2.4 -14.7" width="6" height="4.8" depth=".35" color="#22272B"></a-box>
+    <a-light class="blackout-light" type="point" position="0 5 0" intensity="1.3" distance="25" color="#DDD6EA"></a-light>
+  </a-entity>
+
+  
+  <!-- CONEXIÓN ABIERTA A LAS HABITACIONES TRASERAS -->
+  
+  <a-box position="0 7 -222" width="18" height=".28" depth="38" color="#55534E"></a-box>
+  <a-light class="blackout-light" type="point" position="0 5.4 -211" intensity="1.2" distance="18" color="#E9DFC3"></a-light>
+  <a-light class="blackout-light" type="point" position="0 5.4 -229" intensity="1.2" distance="18" color="#E9DFC3"></a-light>
+
+
+  <!-- ===== HABITACIÓN 3: EMPLEADOS ===== -->
+  <a-entity id="staff-room" position="-25 0 -254">
+    <!-- entrada abierta de empleados -->
+    <a-box class="solid" position="-8.5 3.5 14" width="11" height="7" depth=".4" color="#5B513C"></a-box>
+    <a-box class="solid" position="8.5 3.5 14" width="11" height="7" depth=".4" color="#5B513C"></a-box>
+    <a-box class="solid" position="0 5.8 14" width="6" height="2.4" depth=".4" color="#5B513C"></a-box>
+    
+    <a-box position="0 7 0" width="28" height=".3" depth="28" color="#514B43"></a-box>
+    <a-box class="solid" position="-14 3.5 0" width=".4" height="7" depth="28" color="#5B513C"></a-box>
+    <a-box class="solid" position="14 3.5 0" width=".4" height="7" depth="28" color="#5B513C"></a-box>
+    <a-box class="solid" position="0 3.5 -14" width="28" height="7" depth=".4" color="#5B513C"></a-box>
+
+    <a-box position="-8 1 -6" width="4" height="2" depth="1.5" color="#5B4938"></a-box>
+    <a-box position="3 1 -7" width="4" height="2" depth="1.5" color="#5B4938"></a-box>
+    <a-box hide-spot position="-10 1.8 5" width="1.7" height="3.6" depth="1.3" color="#46545B"></a-box>
+    <a-box hide-spot position="-7.8 1.8 5" width="1.7" height="3.6" depth="1.3" color="#46545B"></a-box>
+    <a-box hide-spot position="-5.6 1.8 5" width="1.7" height="3.6" depth="1.3" color="#46545B"></a-box>
+    <a-light class="blackout-light" type="point" position="0 5 0" intensity="1.2" distance="23" color="#E4D7BB"></a-light>
+  </a-entity>
+
+  <!-- ===== HABITACIÓN 4: LLAVES ===== -->
+  <a-entity id="key-room" position="25 0 -254">
+    <!-- entrada abierta de llaves -->
+    <a-box class="solid" position="-8.5 3.5 14" width="11" height="7" depth=".4" color="#304C59"></a-box>
+    <a-box class="solid" position="8.5 3.5 14" width="11" height="7" depth=".4" color="#304C59"></a-box>
+    <a-box class="solid" position="0 5.8 14" width="6" height="2.4" depth=".4" color="#304C59"></a-box>
+    
+    <a-box position="0 7 0" width="28" height=".3" depth="28" color="#45535A"></a-box>
+    <a-box class="solid" position="-14 3.5 0" width=".4" height="7" depth="28" color="#304C59"></a-box>
+    <a-box class="solid" position="14 3.5 0" width=".4" height="7" depth="28" color="#304C59"></a-box>
+    <a-box class="solid" position="0 3.5 -14" width="28" height="7" depth=".4" color="#304C59"></a-box>
+
+    <a-entity pickup-item="kind:key; id:star" position="-8 1 -5">
+      <a-sphere radius=".28" color="#D7B742"></a-sphere>
+      <a-box position=".55 0 0" width="1.1" height=".13" depth=".13" color="#D7B742"></a-box>
+    </a-entity>
+    <a-entity pickup-item="kind:key; id:circle" position="0 1 5">
+      <a-torus radius=".3" radius-tubular=".08" color="#4E89A0"></a-torus>
+      <a-box position=".58 0 0" width="1" height=".13" depth=".13" color="#4E89A0"></a-box>
+    </a-entity>
+    <a-entity pickup-item="kind:key; id:triangle" position="9 1 -7">
+      <a-triangle vertex-a="0 .38 0" vertex-b="-.35 -.28 0" vertex-c=".35 -.28 0" color="#A65762"></a-triangle>
+      <a-box position=".58 0 0" width="1" height=".13" depth=".13" color="#A65762"></a-box>
+    </a-entity>
+    <a-light class="blackout-light" type="point" position="0 5 0" intensity="1.2" distance="23" color="#D4E2E6"></a-light>
+  </a-entity>
+
+  <!-- corredor entre las habitaciones traseras -->
+  
+  <a-box position="0 7 -245" width="22" height=".3" depth="48" color="#55534E"></a-box>
+
+  <!-- monstruos nuevos recolocados -->
+  <a-entity id="monster-smiler" position="0 0 -198"
+    monster-react="distance:16; speed:1.05; mode:watch" remember-enemy-spawn>
+    <a-cone position="0 2 0" radius-bottom=".85" radius-top=".45" height="4" color="#A89135"></a-cone>
+    <a-sphere position="0 4.25 0" scale=".72 .92 .6" color="#B29A3C"></a-sphere>
+    <a-sphere position="-.25 4.42 .54" scale=".11 .20 .06"
+      material="color:#120B0B; emissive:#751B24; emissiveIntensity:1"></a-sphere>
+    <a-sphere position=".25 4.42 .54" scale=".11 .20 .06"
+      material="color:#120B0B; emissive:#751B24; emissiveIntensity:1"></a-sphere>
+    <a-torus position="0 4.08 .55" radius=".32" radius-tubular=".06" arc="170"
+      rotation="0 0 180" color="#651D25"></a-torus>
+    <a-cylinder position="-1.05 2.3 0" rotation="0 0 -12" radius=".11" height="3.8" color="#9D8735"></a-cylinder>
+    <a-cylinder position="1.05 2.3 0" rotation="0 0 12" radius=".11" height="3.8" color="#9D8735"></a-cylinder>
+  </a-entity>
+
+  <a-entity id="monster-eyes" position="28 .4 -224"
+    monster-react="distance:13; speed:1.25; mode:follow" remember-enemy-spawn>
+    <a-sphere scale="1.2 .45 .75" color="#202126"></a-sphere>
+    <a-sphere position="-.35 .15 .65" radius=".12"
+      material="color:#D6C45A; emissive:#D6C45A; emissiveIntensity:1.4"></a-sphere>
+    <a-sphere position=".35 .15 .65" radius=".12"
+      material="color:#D6C45A; emissive:#D6C45A; emissiveIntensity:1.4"></a-sphere>
+  </a-entity>
+
+  <a-entity id="monster-watch" position="-25 0 -252"
+    monster-react="distance:12; speed:.9; mode:blackout" remember-enemy-spawn>
+    <a-cylinder position="0 1.65 0" radius=".55" height="3.3" color="#405458"></a-cylinder>
+    <a-sphere position="0 3.45 0" scale=".65 .65 .55" color="#53686A"></a-sphere>
+    <a-sphere position="0 3.5 .53" radius=".20"
+      material="color:#161819; emissive:#8A3035; emissiveIntensity:1.2"></a-sphere>
+  </a-entity>
+
+
+  
+  <!-- guía visual hacia la expansión: luces amarillas -->
+  <a-sphere position="0 6.45 -166" radius=".16" material="color:#D7B342; emissive:#D7B342; emissiveIntensity:1.3"></a-sphere>
+  <a-sphere position="0 6.45 -172" radius=".16" material="color:#D7B342; emissive:#D7B342; emissiveIntensity:1.3"></a-sphere>
+  <a-sphere position="0 6.45 -178" radius=".16" material="color:#D7B342; emissive:#D7B342; emissiveIntensity:1.3"></a-sphere>
+  <a-sphere position="0 6.45 -184" radius=".16" material="color:#D7B342; emissive:#D7B342; emissiveIntensity:1.3"></a-sphere>
+
+
+  
+  <!-- PILAS EXTRA VISIBLES -->
+  <!-- una en el gran salón -->
+
+  <!-- una justo antes del laberinto/parkour -->
+
+  <!-- una al comienzo del corredor de la expansión -->
+
+  <!-- una en la sala distribuidora -->
+
+
+  
+  <!-- PILAS PEQUEÑAS Y REPARTIDAS -->
+
+  <a-entity pickup-item="kind:battery" position="-12 0.28 -44">
+    <a-cylinder radius=".13" height=".42" color="#D8B235"
+      material="emissive:#6D540C; emissiveIntensity:.28"></a-cylinder>
+    <a-cylinder position="0 .235 0" radius=".09" height=".05" color="#292B2E"></a-cylinder>
+    <a-cylinder position="0 -.235 0" radius=".12" height=".04" color="#292B2E"></a-cylinder>
+    <a-light type="point" color="#D8B235" intensity=".22" distance="2.2"></a-light>
+  </a-entity>
+  <a-entity pickup-item="kind:battery" position="22 0.28 -84">
+    <a-cylinder radius=".13" height=".42" color="#D8B235"
+      material="emissive:#6D540C; emissiveIntensity:.28"></a-cylinder>
+    <a-cylinder position="0 .235 0" radius=".09" height=".05" color="#292B2E"></a-cylinder>
+    <a-cylinder position="0 -.235 0" radius=".12" height=".04" color="#292B2E"></a-cylinder>
+    <a-light type="point" color="#D8B235" intensity=".22" distance="2.2"></a-light>
+  </a-entity>
+  <a-entity pickup-item="kind:battery" position="-31 0.28 -137">
+    <a-cylinder radius=".13" height=".42" color="#D8B235"
+      material="emissive:#6D540C; emissiveIntensity:.28"></a-cylinder>
+    <a-cylinder position="0 .235 0" radius=".09" height=".05" color="#292B2E"></a-cylinder>
+    <a-cylinder position="0 -.235 0" radius=".12" height=".04" color="#292B2E"></a-cylinder>
+    <a-light type="point" color="#D8B235" intensity=".22" distance="2.2"></a-light>
+  </a-entity>
+  <a-entity pickup-item="kind:battery" position="-29 0.28 -222">
+    <a-cylinder radius=".13" height=".42" color="#D8B235"
+      material="emissive:#6D540C; emissiveIntensity:.28"></a-cylinder>
+    <a-cylinder position="0 .235 0" radius=".09" height=".05" color="#292B2E"></a-cylinder>
+    <a-cylinder position="0 -.235 0" radius=".12" height=".04" color="#292B2E"></a-cylinder>
+    <a-light type="point" color="#D8B235" intensity=".22" distance="2.2"></a-light>
+  </a-entity>
+  <a-entity pickup-item="kind:battery" position="29 0.28 -255">
+    <a-cylinder radius=".13" height=".42" color="#D8B235"
+      material="emissive:#6D540C; emissiveIntensity:.28"></a-cylinder>
+    <a-cylinder position="0 .235 0" radius=".09" height=".05" color="#292B2E"></a-cylinder>
+    <a-cylinder position="0 -.235 0" radius=".12" height=".04" color="#292B2E"></a-cylinder>
+    <a-light type="point" color="#D8B235" intensity=".22" distance="2.2"></a-light>
+  </a-entity>
+
+  
+  
+  <!-- PAREDES EXTERIORES: ya no se ve el fondo del navegador -->
+  <a-box class="solid" position="-40 3.5 -207" width=".55" height="7" depth="186" color="#182A30"></a-box>
+  <a-box class="solid" position="40 3.5 -207" width=".55" height="7" depth="186" color="#35252E"></a-box>
+  <a-box class="solid" position="0 3.5 -300" width="80" height="7" depth=".55" color="#27282D"></a-box>
+  <a-box position="0 7 -232" width="80" height=".25" depth="136" color="#303136"></a-box>
+
+<!-- ======================================================
+       CONTENIDO EXTRA DE LAS HABITACIONES
+  ======================================================= -->
+
+  <!-- MANTENIMIENTO: estantes, cajas, herramientas, generador -->
+  <a-entity position="-25 0 -220">
+    <a-box class="solid" position="-10 1 5" width="2.2" height="2" depth="5" color="#4A4F4B"></a-box>
+    <a-box class="solid" position="9 1 4" width="2.5" height="2" depth="4" color="#444A47"></a-box>
+    <a-cylinder position="-6 1 -7" radius="1" height="2" color="#4B5551"></a-cylinder>
+    <a-cylinder position="-6 2.2 -7" radius=".35" height=".6" color="#756B5D"></a-cylinder>
+    <a-box position="5 .55 7" width="2" height="1.1" depth="1.5" color="#65543C"></a-box>
+    <a-box position="7 .4 7" width="1.4" height=".8" depth="1.3" color="#554735"></a-box>
+    <a-box hide-spot position="11 1.6 9" width="2.2" height="3.2" depth="1.4" color="#3F4847"></a-box>
+    <a-entity cake-health position="-2 .22 7"><a-box width=".55" height=".35" depth=".55" color="#D7A28D"></a-box><a-box position="0 .22 0" width=".58" height=".10" depth=".58" color="#E9D1C2"></a-box></a-entity>
+  </a-entity>
+
+  <!-- BOTONES / ARCADE: máquinas y minijuegos -->
+  <a-entity position="25 0 -220">
+    <a-box simple-puzzle="kind:arcade" position="-10 1.6 8" width="2.2" height="3.2" depth="1.6"
+      material="color:#28364A; emissive:#16243C; emissiveIntensity:.45"></a-box>
+    <a-box position="-10 2.2 7.15" width="1.5" height=".9" depth=".05"
+      material="color:#4A6F7F; emissive:#4A6F7F; emissiveIntensity:.8"></a-box>
+    <a-box position="-6 1.6 8" width="2.2" height="3.2" depth="1.6" color="#4B3047"></a-box>
+    <a-box position="-6 2.2 7.15" width="1.5" height=".9" depth=".05"
+      material="color:#76546D; emissive:#76546D; emissiveIntensity:.8"></a-box>
+
+    <!-- canasta -->
+    <a-torus simple-puzzle="kind:basket" position="9 3 -8" rotation="90 0 0" radius="1" radius-tubular=".10" color="#9A5D36"></a-torus>
+    <a-box position="9 4 -8.4" width="3" height="2.2" depth=".18" color="#645B50"></a-box>
+    <a-sphere class="pickup-ball" position="7 .55 -2" radius=".42" color="#A96B37"></a-sphere>
+
+    <!-- regalos por color -->
+    <a-box simple-puzzle="kind:gifts" position="6 .6 6" width="1.2" height="1.2" depth="1.2" color="#9B4F58"></a-box>
+    <a-box position="8 .6 6" width="1.2" height="1.2" depth="1.2" color="#4C7789"></a-box>
+    <a-box position="10 .6 6" width="1.2" height="1.2" depth="1.2" color="#9A8242"></a-box>
+  </a-entity>
+
+  <!-- EMPLEADOS: escritorios, monitores/cámaras, cajas, cortina -->
+  <a-entity position="-25 0 -254">
+    <a-box class="solid" position="-3 1 -5" width="6" height="1.1" depth="2" color="#594A3A"></a-box>
+    <a-box class="solid" position="7 1 -5" width="5" height="1.1" depth="2" color="#594A3A"></a-box>
+    <a-box position="-4 2 -5" width="2.1" height="1.3" depth=".18" material="color:#172127; emissive:#294451; emissiveIntensity:.6"></a-box>
+    <a-box position="-1.5 2 -5" width="2.1" height="1.3" depth=".18" material="color:#171D21; emissive:#453A4D; emissiveIntensity:.6"></a-box>
+    <a-box position="6 2 -5" width="2.1" height="1.3" depth=".18" material="color:#172127; emissive:#294451; emissiveIntensity:.6"></a-box>
+    <a-box position="8.5 2 -5" width="2.1" height="1.3" depth=".18" material="color:#171D21; emissive:#453A4D; emissiveIntensity:.6"></a-box>
+    <a-box position="8 .5 5" width="2" height="1" depth="2" color="#6A573D"></a-box>
+    <a-box position="5 .4 7" width="1.7" height=".8" depth="1.6" color="#5C4A36"></a-box>
+    <a-plane hide-spot position="12 2 2" rotation="0 -90 0" width="4" height="4" color="#5D465B" material="side:double"></a-plane>
+    <a-box hide-spot position="-3 .45 7" width="5" height=".9" depth="2" color="#4C4137"></a-box>
+  </a-entity>
+
+  <!-- LLAVES: estanterías y vitrinas -->
+  <a-entity position="25 0 -254">
+    <a-box class="solid" position="-10 2 -1" width="2" height="4" depth="8" color="#3D4D52"></a-box>
+    <a-box class="solid" position="10 2 -1" width="2" height="4" depth="8" color="#3D4D52"></a-box>
+    <a-box position="0 .6 -8" width="6" height="1.2" depth="2" color="#45555A"></a-box>
+    <a-entity cake-health position="0 .22 -7.8"><a-box width=".55" height=".35" depth=".55" color="#C98F84"></a-box><a-box position="0 .22 0" width=".58" height=".10" depth=".58" color="#E6C9BD"></a-box></a-entity>
+  </a-entity>
+
+  <!-- CONDUCTO / ATAJO ENTRE EMPLEADOS Y LLAVES -->
+  <a-box position="0 .8 -257" width="22" height="1.6" depth="2.2" color="#30383B"></a-box>
+  <a-box position="0 1.55 -257" width="22" height=".12" depth="2.2" color="#495256"></a-box>
+  <a-box position="0 .05 -257" width="22" height=".12" depth="2.2" color="#495256"></a-box>
+
+  <!-- HABITACIÓN SECRETA, detrás de las llaves -->
+  <a-entity id="secret-room">
+    
+    <a-box position="25 7 -280" width="28" height=".25" depth="18" color="#3C4043"></a-box>
+    <a-box class="solid" position="11 3.5 -280" width=".35" height="7" depth="18" color="#343C40"></a-box>
+    <a-box class="solid" position="39 3.5 -280" width=".35" height="7" depth="18" color="#343C40"></a-box>
+    <a-box class="solid" position="25 3.5 -289" width="28" height="7" depth=".35" color="#343C40"></a-box>
+    <a-box id="secret-key-door" class="solid" key-door position="25 2.5 -271" width="6" height="5" depth=".4" color="#20262A"></a-box>
+
+    <!-- cosas guardadas -->
+    <a-box position="17 .7 -282" width="3" height="1.4" depth="2" color="#5D4C36"></a-box>
+    <a-box position="33 .6 -284" width="2.5" height="1.2" depth="2.5" color="#544532"></a-box>
+    <a-sphere position="20 1 -277" radius=".7" color="#7A4A55"></a-sphere>
+    <a-sphere position="30 1 -278" radius=".7" color="#3F6876"></a-sphere>
+    <a-light class="blackout-light" type="point" position="25 5 -280" intensity=".9" distance="20" color="#9AA7AD"></a-light>
+  </a-entity>
+
+  <!-- SALIDA FINAL -->
+  <a-entity position="0 0 -286">
+    
+    <a-box class="solid" position="-9 3.5 0" width=".35" height="7" depth="18" color="#3A3D40"></a-box>
+    <a-box class="solid" position="9 3.5 0" width=".35" height="7" depth="18" color="#3A3D40"></a-box>
+    <a-box final-exit position="0 2.5 -8" width="7" height="5" depth=".5"
+      material="color:#4B3436; emissive:#35191C; emissiveIntensity:.35"></a-box>
+  </a-entity>
+
+
+  
+  <!-- CONTENIDO EXTRA PARA QUE LAS HABITACIONES NO ESTÉN VACÍAS -->
+  <a-entity position="-25 0 -220">
+    <a-box class="solid" position="0 2.1 -13.6" width="8" height="3.8" depth=".5" color="#252C2A"></a-box>
+    <a-box position="-8 .55 7" width="3" height="1.1" depth="2" color="#67543B"></a-box>
+    <a-box position="7 .45 6" width="2.4" height=".9" depth="2" color="#594A38"></a-box>
+    <a-cylinder position="-4 1 -8" radius="1" height="2" color="#46524D"></a-cylinder>
+    <a-box hide-spot position="11 1.7 9" width="2" height="3.4" depth="1.4" color="#3D4748"></a-box>
+  </a-entity>
+
+  <a-entity position="25 0 -220">
+    <a-box simple-puzzle="kind:arcade" position="-10 1.6 9" width="2.2" height="3.2" depth="1.6" color="#28364A"></a-box>
+    <a-box position="-6 1.6 9" width="2.2" height="3.2" depth="1.6" color="#4B3047"></a-box>
+    <a-box position="-2 1.6 9" width="2.2" height="3.2" depth="1.6" color="#304A45"></a-box>
+    <a-box position="2 1.6 9" width="2.2" height="3.2" depth="1.6" color="#493B5A"></a-box>
+    <a-torus simple-puzzle="kind:basket" position="9 3 -8" rotation="90 0 0" radius="1" radius-tubular=".1" color="#9A5D36"></a-torus>
+    <a-sphere class="pickup-ball" position="7 .5 -2" radius=".42" color="#A96B37"></a-sphere>
+  </a-entity>
+
+  <a-entity position="-25 0 -254">
+    <a-box class="solid" position="-3 1 -5" width="6" height="1.1" depth="2" color="#594A3A"></a-box>
+    <a-box class="solid" position="7 1 -5" width="5" height="1.1" depth="2" color="#594A3A"></a-box>
+    <a-box position="-4 2 -5" width="2" height="1.2" depth=".18" material="color:#172127;emissive:#294451;emissiveIntensity:.7"></a-box>
+    <a-box position="-1.5 2 -5" width="2" height="1.2" depth=".18" material="color:#171D21;emissive:#453A4D;emissiveIntensity:.7"></a-box>
+    <a-box position="6 2 -5" width="2" height="1.2" depth=".18" material="color:#172127;emissive:#294451;emissiveIntensity:.7"></a-box>
+    <a-box hide-spot position="-3 .45 7" width="5" height=".9" depth="2" color="#4C4137"></a-box>
+  </a-entity>
+
+  <a-entity position="25 0 -254">
+    <a-box class="solid" position="-10 2 -1" width="2" height="4" depth="8" color="#3D4D52"></a-box>
+    <a-box class="solid" position="10 2 -1" width="2" height="4" depth="8" color="#3D4D52"></a-box>
+    <a-box position="0 .6 -8" width="6" height="1.2" depth="2" color="#45555A"></a-box>
+  </a-entity>
+
+
+  
+  <!-- CIERRE DEL LABERINTO: NO HAY PASO A LA ZONA NUEVA POR AQUÍ -->
+  <a-entity id="cierre-final-laberinto">
+    <a-box class="solid"
+      position="-20 3.5 -165"
+      width="40" height="7" depth=".65"
+      color="#342B36">
+    </a-box>
+  </a-entity>
+
+
+  <!-- =======================================================
+
+                         JUGADOR / CÁMARA
+
+
+
+       IMPORTANTE:
+
+       Ahora wasd-controls y player-collision están
+
+       en LA MISMA entidad.
+
+
+
+       Esto corrige el problema de las colisiones.
+
+  ======================================================== -->
+
+
+
+
+
+  <a-entity
+
+
+
+    id="player"
+
+
+
+    position="0 1.65 1"
+
+
+
+    camera="
+
+      near:0.05;
+
+      far:250;
+
+      fov:75"
+
+
+
+    look-controls
+
+
+
+    wasd-controls="
+
+      acceleration:24;
+
+      fly:false"
+
+
+
+    sprint-control="walk:24; run:68"
+
+    player-collision="
+
+      radius:0.42"
+
+    game-controls="jumpSpeed:8.2; gravity:17; floorY:1.65">
+
+
+
+  
+    <!-- linterna: L enciende/apaga -->
+    <a-entity id="flashlight" flashlight flashlight-toggle
+      position="0 0 0"
+      light="type:spot; color:#FFF7DD; intensity:0; distance:48; angle:42; penumbra:.32; decay:.85"
+      rotation="-4 0 0">
+    
+      <a-entity id="flashlight-fill"
+        light="type:point; color:#FFF1CC; intensity:.85; distance:8; decay:1.2">
+      </a-entity>
+</a-entity>
+</a-entity>
+
+
+
+
+
+</a-scene>
+
+
+
+
+
+</body>
+
+</html>
