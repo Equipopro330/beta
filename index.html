@@ -909,6 +909,7 @@ AFRAME.registerComponent('blackout-event', {
     if (this.player.object3D.position.z < this.data.triggerZ) {
       this.done = true;
       window.FUN_CENTER_BLACKOUT = true;
+      if (window.FUN_MUSIC_BLACKOUT) window.FUN_MUSIC_BLACKOUT(true);
       document.body.classList.add('blackout');
       const ambient = document.querySelectorAll('[light]');
       ambient.forEach(el => {
@@ -1204,6 +1205,7 @@ AFRAME.registerComponent('power-switch', {
     if(window.FUN_SWITCHES.size>=3){
       window.FUN_POWER_RESTORED=true;
       window.FUN_CENTER_BLACKOUT=false;
+      if (window.FUN_MUSIC_BLACKOUT) window.FUN_MUSIC_BLACKOUT(false);
       document.querySelectorAll('.blackout-light').forEach(l=>l.setAttribute('light','intensity',1.25));
       funHud('ENERGÍA RESTAURADA',3000);
     }
@@ -1538,6 +1540,16 @@ AFRAME.registerComponent('party-hat-reward', {
 });
 </script>
 
+
+<style>
+#music-menu-toggle{position:fixed;top:14px;left:14px;z-index:30002;width:46px;height:46px;background:rgba(12,15,20,.88);color:#f3ead7;border:1px solid rgba(255,255,255,.28);border-radius:8px;cursor:pointer;font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 16px #0005}
+#music-panel{position:fixed;top:68px;left:14px;z-index:30001;background:rgba(12,15,20,.92);color:#f3ead7;border:1px solid rgba(255,255,255,.22);border-radius:9px;padding:10px 12px;font:13px Arial,sans-serif;width:190px;box-shadow:0 3px 16px #0005}
+#music-panel button{background:#252b35;color:#f3ead7;border:1px solid #68717d;border-radius:5px;padding:6px 9px;cursor:pointer}
+#music-panel button:hover,#music-menu-toggle:hover{background:#394351}#music-panel input[type=range]{width:100%;accent-color:#d3b46b}
+#music-panel .music-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:7px}
+#music-panel small{opacity:.8}#music-panel[hidden]{display:none}
+</style>
+
 </head>
 
 
@@ -1547,6 +1559,53 @@ AFRAME.registerComponent('party-hat-reward', {
 
 
 <body>
+<!-- Música: coloca carrusel.wav y suspenso.wav junto al index.html -->
+<audio id="music-normal" src="carrusel.wav" loop preload="auto"></audio>
+<audio id="music-horror" src="suspenso.wav" loop preload="auto"></audio>
+<button id="music-menu-toggle" type="button" aria-label="Abrir controles de música" aria-expanded="false" title="Controles de música">☰</button>
+<div id="music-panel" aria-label="Controles de música" hidden>
+  <div style="font-weight:bold;letter-spacing:.4px">♫ Música</div>
+  <div class="music-row"><button id="music-mute" type="button">Silenciar</button><small id="music-volume-label">35%</small></div>
+  <input id="music-volume" type="range" min="0" max="100" value="35" aria-label="Volumen de música">
+  <small id="music-status">Carrusel</small>
+</div>
+<script>
+(()=>{
+ const normal=document.getElementById('music-normal'), horror=document.getElementById('music-horror');
+ const slider=document.getElementById('music-volume'), muteBtn=document.getElementById('music-mute'), label=document.getElementById('music-volume-label'),status=document.getElementById('music-status');
+ const panel=document.getElementById('music-panel'), menuToggle=document.getElementById('music-menu-toggle');
+ menuToggle.addEventListener('click',()=>{panel.hidden=!panel.hidden;menuToggle.setAttribute('aria-expanded',String(!panel.hidden));});
+ if(!normal||!horror)return;
+ let started=false, blackout=false, muted=false, volume=.35, ctx=null, normalGain=null, dry=null, wet=null, delay=null, feedback=null, filter=null, horrorGain=null, fadeToken=0;
+ normal.volume=1; horror.volume=1;
+ function setupEcho(){
+   if(ctx)return; ctx=new (window.AudioContext||window.webkitAudioContext)();
+   const nsrc=ctx.createMediaElementSource(normal); normalGain=ctx.createGain(); dry=ctx.createGain(); wet=ctx.createGain(); delay=ctx.createDelay(2); feedback=ctx.createGain(); filter=ctx.createBiquadFilter();
+   nsrc.connect(normalGain); normalGain.connect(dry); dry.connect(ctx.destination);
+   normalGain.connect(delay); delay.connect(filter); filter.connect(wet); wet.connect(ctx.destination); delay.connect(feedback); feedback.connect(delay);
+   delay.delayTime.value=.32; feedback.gain.value=.22; filter.type='lowpass';filter.frequency.value=2600; dry.gain.value=.82;wet.gain.value=.32;
+   const hsrc=ctx.createMediaElementSource(horror); horrorGain=ctx.createGain();hsrc.connect(horrorGain);horrorGain.connect(ctx.destination);
+ }
+ function applyVolume(){if(!ctx)return;const v=muted?0:volume;normalGain.gain.value=blackout?0:v;horrorGain.gain.value=blackout?v:0;}
+ async function start(){if(started)return;started=true;try{setupEcho();await ctx.resume();await (blackout?horror:normal).play();}catch(e){started=false;return;}applyVolume();}
+ function fadeTo(isBlackout){blackout=!!isBlackout;status.textContent=blackout?'Suspenso':'Carrusel';if(!started){return;}
+   const token=++fadeToken; const target=blackout?horror:normal, other=blackout?normal:horror;
+   if(target.paused)target.play().catch(()=>{});
+   let elapsed=0;const duration=2200,step=100;const fromT=target===normal?normalGain.gain.value:horrorGain.gain.value;const fromO=other===normal?normalGain.gain.value:horrorGain.gain.value;
+   const to=muted?0:volume;
+   const timer=setInterval(()=>{if(token!==fadeToken){clearInterval(timer);return;}elapsed+=step;const p=Math.min(elapsed/duration,1);
+     if(target===normal)normalGain.gain.value=fromT+(to-fromT)*p;else horrorGain.gain.value=fromT+(to-fromT)*p;
+     if(other===normal)normalGain.gain.value=fromO*(1-p);else horrorGain.gain.value=fromO*(1-p);
+     if(p>=1){clearInterval(timer);other.pause();if(other===normal)normalGain.gain.value=0;else horrorGain.gain.value=0;}
+   },step);
+ }
+ slider.addEventListener('input',()=>{volume=Number(slider.value)/100;label.textContent=slider.value+'%';muted=volume===0;muteBtn.textContent=muted?'Activar':'Silenciar';if(started){if(blackout)horrorGain.gain.value=muted?0:volume;else normalGain.gain.value=muted?0:volume;}});
+ muteBtn.addEventListener('click',()=>{muted=!muted;muteBtn.textContent=muted?'Activar':'Silenciar';if(started){if(blackout)horrorGain.gain.value=muted?0:volume;else normalGain.gain.value=muted?0:volume;} });
+ window.addEventListener('keydown',start,{once:true});window.addEventListener('click',start,{once:true});
+ window.FUN_MUSIC_BLACKOUT=fadeTo;
+})();
+</script>
+
 
 
 
@@ -5319,7 +5378,7 @@ AFRAME.registerComponent('party-hat-reward', {
   ======================================================== -->
 
   <!-- MONSTRUO 1: criatura amarilla con globo rojo -->
-  <a-entity position="22 0 -79" rotation="0 -35 0" monster-react="distance:22; speed:.85; mode:follow; faceBack:true; exitX:13; exitZ:-74" remember-enemy-spawn enemy-danger="killDistance:1.35" remember-enemy-spawn monster-cube-drop>
+  <a-entity position="22 0 -79" rotation="0 -35 0" monster-react="distance:22; speed:.85; mode:follow; faceBack:true" remember-enemy-spawn enemy-danger="killDistance:1.35" remember-enemy-spawn monster-cube-drop>
 
     <!-- cuerpo / túnica -->
     <a-cone class="solid"
